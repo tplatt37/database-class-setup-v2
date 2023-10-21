@@ -6,6 +6,9 @@
 
 main() {
 
+  # This is an arbitrary naming identifier that is used to ensure all stacks can be clearly identified as being part of this project.
+  PREFIX="database"
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --demos)
@@ -54,7 +57,29 @@ main() {
   # Our first preference is the --region argument, then AWS_DEFAULT_REGION, lastly just use that set in the profile.
   REGION=${REGION_ARG:-${AWS_DEFAULT_REGION:-$(aws configure get default.region)}}
 
-  # Do work here
+  # Check for pre-requisites
+  ./00-check-prereqs.sh
+  if [[ $? -ne 0 ]]; then
+      err "Missing prerequisites... exiting..."
+      exit 1
+  fi
+
+  # VPC ?
+  # There should be an existing VPC - created either by this project, or via the Super-VPC project.
+  # This VPC has database subnet groups, and other things that will be needed later.
+  echo "VPC - Checking to see if $PREFIX-vpc stack exists..."
+  aws cloudformation describe-stacks --stack-name $PREFIX-vpc --region $REGION 1>/dev/null
+  if [[ $? -ne 0 ]]; then
+    err "Stack$PREFIX-vpc doesn't exist ($REGION) - Please run ./01-vpc-3az.sh first.  Exiting..."
+    exit 1
+  fi
+
+  # Install common components - the schema repo and generate secrets
+
+
+  # Install indidividual pipelines as requested.
+
+
 
 }
 
@@ -75,11 +100,13 @@ usage() {
 
 validate_arguments() {
   
-  if [[ -z "$demos" || -z "$bucket" ]]; then
+  if [[ -z "$DEMOS" || -z "$BUCKET" ]]; then
     err "Missing required argumemts."
     usage
     exit 1
   fi
+
+  # TODO: Validate that DEMOS requested are valid
 
 }
 
