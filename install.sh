@@ -75,7 +75,17 @@ main() {
   fi
 
   # Install common components - the schema repo and generate secrets
-  
+  ./02-repo.sh
+  if [[ $? -ne 0 ]]; then
+    err "Error while creating repo. Exiting..."
+    exit 1
+  fi
+
+  ./03-secret.sh 
+  if [[ $? -ne 0 ]]; then
+    err "Error while creating secrets.  Exiting..."
+    exit 1
+  fi
 
   # Install indidividual pipelines as requested.
 
