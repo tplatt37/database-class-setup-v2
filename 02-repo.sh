@@ -62,7 +62,7 @@ main() {
   rm database-schemas.zip
 
   echo "Setting up CodeCommit repo..."
-  aws cloudformation deploy --template-file core/repo.yaml --stack-name $PREFIX-repo --parameter-overrides CodeBucketName=$BUCKET --region $REGION
+  aws cloudformation deploy --template-file core/repo.yaml --stack-name $PREFIX-repo --parameter-overrides CodeBucketName=$BUCKET --region $REGION --capabilities CAPABILITY_NAMED_IAM
 
 }
 

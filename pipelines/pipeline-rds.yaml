@@ -105,7 +105,8 @@ Resources:
             EnvironmentVariables:
             - Name: BUCKET_NAME
               Type: PLAINTEXT
-              Value: !Ref ArtifactStoreBucket
+              Value: !ImportValue 
+                Fn::Join: [ '-', [!Ref Prefix, "ArtifactStoreBucket"]]
         ServiceRole:
             Fn::GetAtt:
             - BuildRole

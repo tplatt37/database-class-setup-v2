@@ -39,8 +39,12 @@ main() {
   # Our first preference is the --region argument, then AWS_DEFAULT_REGION, lastly just use that set in the profile.
   REGION=${REGION_ARG:-${AWS_DEFAULT_REGION:-$(aws configure get default.region)}}
 
-  echo "Creating RDS MySQL Multi-AZ INSTANCE..."
-  aws cloudformation create-stack --template-body file://templates/rds-instance.yaml --stack-name $PREFIX-rds-instance --region $REGION
+  echo "Creating CodePipeline for RDS MySQL Multi-AZ INSTANCE ($REGION) ..."
+  aws cloudformation deploy \
+   --template-file pipelines/pipeline-rds.yaml \
+   --stack-name $PREFIX-rds-instance \
+   --capabilities CAPABILITY_NAMED_IAM \
+   --region $REGION
 
   echo "Done."
 }
