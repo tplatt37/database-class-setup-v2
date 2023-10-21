@@ -94,6 +94,10 @@ main() {
 
   # Keep this order! 
 
+  STACK_NAME=$PREFIX-rds-instance
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+
   STACK_NAME=$PREFIX-redshift
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
@@ -102,9 +106,6 @@ main() {
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
-  STACK_NAME=$PREFIX-rds-instance
-  echo "Deleting ($STACK_NAME) ..."
-  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
   STACK_NAME=$PREFIX-rds-cluster
   echo "Deleting ($STACK_NAME) ..."
@@ -123,9 +124,11 @@ main() {
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
   #
-  # This can't be deleted until all the RDS databases are gone as the secret will 
-  # show in use
+  # The Secrets can't be deleted until the db stacks are gone.
   #
+  STACK_NAME=$PREFIX-rds-instance
+  aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+
 
   STACK_NAME=$PREFIX-secrets
   echo "Deleting ($STACK_NAME) ..."

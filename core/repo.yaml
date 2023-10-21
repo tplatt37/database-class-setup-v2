@@ -113,9 +113,15 @@ Resources:
                   - 'logs:CreateLogStream'
                   - 'logs:PutLogEvents'
                   - 'ec2:AuthorizeSecurityGroupIngress'
+                  
                   # TODO: Make more precise
+                  # New stuff here 2023-10-21
                   - 'rds:*'
                   - 'secretsmanager:GetSecretValue'
+                  - 'events:RemoveTargets'
+                  - 'codepipeline:DeletePipeline'
+                  - 'codebuild:DeleteProject'
+
                   - 'sqs:*'
                   - 'sns:*'
                   - 'iam:GetPolicy'
