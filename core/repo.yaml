@@ -115,6 +115,7 @@ Resources:
                   - 'ec2:AuthorizeSecurityGroupIngress'
                   # TODO: Make more precise
                   - 'rds:*'
+                  - 'secretsmanager:GetSecretValue'
                   - 'sqs:*'
                   - 'sns:*'
                   - 'iam:GetPolicy'
