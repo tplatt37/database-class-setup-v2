@@ -42,7 +42,7 @@ main() {
   echo "Creating CodePipeline for RDS MySQL Multi-AZ INSTANCE ($REGION) ..."
   aws cloudformation deploy \
    --template-file pipelines/pipeline-rds.yaml \
-   --stack-name $PREFIX-rds-instance \
+   --stack-name $PREFIX-pipeline-rds-instance \
    --capabilities CAPABILITY_NAMED_IAM \
    --region $REGION
 
