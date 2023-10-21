@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "database-class-setup : Database schemas - CodeCommit repos used by the CI/CD Pipeline"
+
+Parameters:
+  CodeBucketName:
+    Type: String
+    Description: "Name of s3 bucket containing the schema source code - to initialize the repo."
+
+  Prefix:
+    Type: String
+    Default: "database"
+    Description: "Used for the unique naming of resources and exports.  You probably should not change this."
+
+Resources:
+
+  CodeCommitRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties: 
+      Code: 
+        S3:
+          # We initialize the CodeCommit repo contents from this zip.
+          # This ONLY WORKS ON INITIAL CREATE.  You cannot update repo contents through CF.
+          Bucket: !Ref CodeBucketName
+          Key: database-schemas.zip
+      RepositoryDescription: "Database schema code"
+      RepositoryName: !Join ["-", [!Ref Prefix, "schemas"]]
+
+Outputs:
+
+  AppRepo:
+    Value: !GetAtt CodeCommitRepo.Name
+    Export:
+      Name: !Join ['-', [!Ref Prefix, 'Repo']]

@@ -70,12 +70,12 @@ main() {
   echo "VPC - Checking to see if $PREFIX-vpc stack exists..."
   aws cloudformation describe-stacks --stack-name $PREFIX-vpc --region $REGION 1>/dev/null
   if [[ $? -ne 0 ]]; then
-    err "Stack$PREFIX-vpc doesn't exist ($REGION) - Please run ./01-vpc-3az.sh first.  Exiting..."
+    err "Stack $PREFIX-vpc doesn't exist ($REGION) - Please run ./01-vpc-3az.sh first.  Exiting..."
     exit 1
   fi
 
   # Install common components - the schema repo and generate secrets
-
+  
 
   # Install indidividual pipelines as requested.
 

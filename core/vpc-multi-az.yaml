@@ -9,7 +9,10 @@ Description: 'database-class-setup : VPC - with Private and Public subnets, 2 AZ
 # Run like this, if you want 3 AZs
 # aws cloudformation deploy --template-file vpc-multi-az.yaml --parameter-overrides UseThirdAZ=True --stack-name "database-vpc"
 #
+# Run like this if you want 3 AZs and NAT Gateways in each (which will cost per hour)
 # NAT Gateways are optional. Enable using UseNATGateway=True
+# aws cloudformation deploy --template-file vpc-multi-az.yaml --parameter-overrides UseThirdAZ=True UseNATGateway=True --stack-name "database-vpc"
+
 
 Parameters:
 
@@ -73,6 +76,9 @@ Conditions:
   CreateNATGateway: !Equals
     - !Ref UseNATGateway
     - "True"
+  CreateThirdAZAndCreateNATGateway: !And
+  - !Condition CreateThirdAZ
+  - !Condition CreateNATGateway
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -165,35 +171,33 @@ Resources:
   # We only need these routes if we are using NAT Gateways, otherwise default is fine.
   # 
   PrivateRoute01WithNAT:
+    Type: AWS::EC2::Route
     Condition: CreateNATGateway
     DependsOn:
     - VPCGatewayAttachment
     - NatGateway01
-    Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable01
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway01
 
   PrivateRoute02:
+    Type: AWS::EC2::Route
     Condition: CreateNATGateway
     DependsOn:
     - VPCGatewayAttachment
     - NatGateway02
-    Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable02
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway02
 
   PrivateRoute03:
+    Type: AWS::EC2::Route
     DependsOn:
     - VPCGatewayAttachment
     - NatGateway03
-    Type: AWS::EC2::Route
-    Condition:
-    - CreateThirdAZ
-    - CreateNATGateway
+    Condition: CreateThirdAZAndCreateNATGateway
     Properties:
       RouteTableId: !Ref PrivateRouteTable03
       DestinationCidrBlock: 0.0.0.0/0
@@ -233,9 +237,7 @@ Resources:
     - PublicSubnet03
     - VPCGatewayAttachment
     Type: AWS::EC2::NatGateway
-    Condition: 
-    - CreateThirdAZ
-    - CreateNATGateway
+    Condition: CreateThirdAZAndCreateNATGateway
     Properties:
       AllocationId: !GetAtt 'NatGatewayEIP3.AllocationId'
       SubnetId: !Ref PublicSubnet03
@@ -263,9 +265,7 @@ Resources:
     DependsOn:
     - VPCGatewayAttachment
     Type: 'AWS::EC2::EIP'
-    Condition: 
-      - CreateThirdAZ
-      - CreateNATGateway
+    Condition: CreateThirdAZAndCreateNATGateway
     Properties:
       Domain: vpc
 
@@ -417,9 +417,7 @@ Resources:
 
   PrivateSubnet03RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition:
-      - CreateThirdAZ
-      - CreateNATGateway
+    Condition: CreateThirdAZAndCreateNATGateway
     Properties:
       SubnetId: !Ref PrivateSubnet03
       RouteTableId: !Ref PrivateRouteTable03

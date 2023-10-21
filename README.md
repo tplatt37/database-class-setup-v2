@@ -13,6 +13,10 @@ Requires:
 * jq
 * Bash shell
 
+Additional pre-requisites:
+* A VPC created via the Super-VPC package.
+
+
 # Demo Options
 
 This package is capable of creating:
