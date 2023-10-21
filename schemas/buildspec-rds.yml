@@ -1,0 +1,287 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+  pre_build:
+    commands:
+      
+      #
+      # This is the buildspec.yml (CodeBuild "Build Instructions") that are used to load schema/database/data
+      # into each of the databases.  It's all done in one long build project for simplicity sake.
+      #
+      
+      # Dynamically determine which account we are. I do not want to embed any account id into these files.
+      - ACCOUNTID=$(aws sts get-caller-identity --query "Account" --output text)
+      - echo "AccountID=$ACCOUNTID"
+      
+      - REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
+      - echo "Region=$REGION"
+
+      # Which shell are we using?
+      - echo "Using shell..."
+      - ls -lha $(which sh) 
+      
+      - PREFIX="database"
+      
+      # First, we have to pull a whole lot of information from the various Stack Exports.
+      
+      # MySQL Aurora
+      - MYSQL_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-MySqlEndpoint'].Value" --output text)
+      - echo "MYSQL_HOST=$MYSQL_HOST"
+
+      - MYSQL_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-MySqlPort'].Value" --output text)
+      - echo "MYSQL_PORT=$MYSQL_PORT"
+
+      # Postgresql Aurora
+      - PG_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PostgresqlEndpoint'].Value" --output text)
+      - echo "PG_HOST=$PG_HOST"
+
+      - PG_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PostgresqlPort'].Value" --output text)
+      - echo "PG_PORT=$PG_PORT"
+
+      # DocumentDB
+      - DOCDB_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DocDBEndpoint'].Value" --output text)
+      - echo "DOCDB_HOST=$DOCDB_HOST"
+
+      - DOCDB_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DocDBPort'].Value" --output text)
+      - echo "DOCDB_PORT=$DOCDB_PORT"
+
+      # Neptune
+      - NEP_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneDBEndpoint'].Value" --output text)
+      - echo "NEP_HOST=$NEP_HOST"
+
+      - NEP_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneDBPort'].Value" --output text)
+      - echo "NEP_PORT=$NEP_PORT"
+      
+      - NEP_LOAD_ROLE=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneLoaderS3RoleArn'].Value" --output text)
+      - echo "NEP_LOAD_ROLE=$NEP_LOAD_ROLE"
+      
+      - NEP_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneLoaderBucket'].Value" --output text)
+      - echo "NEP_BUCKET=$NEP_BUCKET"
+      
+      # MySQL Multi-AZ instance
+      - MYSQL_INSTANCE_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-MySqlInstanceEndpoint'].Value" --output text)
+      - echo "MYSQL_INSTANCE_HOST=$MYSQL_INSTANCE_HOST"
+
+      - MYSQL_INSTANCE_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-MySqlInstancePort'].Value" --output text)
+      - echo "MYSQL_INSTANCE_PORT=$MYSQL_INSTANCE_PORT"
+
+      - MYSQL_INSTANCE_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-MySqlInstancePort'].Value" --output text)
+      - echo "MYSQL_INSTANCE_PORT=$MYSQL_INSTANCE_PORT"
+     
+      # Postgresql Multi-AZ cluster
+      - POSTGRESQL_CLUSTER_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PostgresqlClusterEndpoint'].Value" --output text)
+      - echo "POSTGRESQL_CLUSTER_HOST=$POSTGRESQL_CLUSTER_HOST"
+
+      - POSTGRESQL_CLUSTER_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-PostgresqlClusterPort'].Value" --output text)
+      - echo "POSTGRESQL_CLUSTER_PORT=$POSTGRESQL_CLUSTER_PORT"
+      
+      # Redshift
+      - RED_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftEndpoint'].Value" --output text)
+      - echo "RED_HOST=$RED_HOST"
+
+      - RED_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftPort'].Value" --output text)
+      - echo "RED_PORT=$RED_PORT"
+
+      - RED_COPY_ROLE=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftCopyS3Role'].Value" --output text)
+      - echo "RED_COPY_ROLE=$RED_COPY_ROLE"
+      
+      - RED_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftCopyBucket'].Value" --output text)
+      - echo "RED_BUCKET=$RED_BUCKET"
+  
+
+      # Get the dbadmin password from SecretsManager
+      # But first, need to grab the ARN of it from a stack export
+      - SECRET_ARN=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DBAdminSecretArn'].Value" --output text)
+      
+      # Use a combination of client side query and jq to parse out the username and password from the secret.
+      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
+      - USER=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.username')
+     
+      # We set PGPASSWORD , which Psql knows to use.
+      - export PGPASSWORD=$PASSWORD
+
+      # Install other things that we need.
+  
+      # Get the PEM and crt files needed to connect securely to the databases
+      - wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+      - wget https://s3.amazonaws.com/redshift-downloads/amazon-trust-ca-bundle.crt
+      - wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+      - ls -lha *.{pem,crt}
+      
+      # https://docs.mongodb.com/manual/tutorial/install-mongodb-on-amazon/
+      # First, mongo
+      - cp mongodb-org-5.0.repo /etc/yum.repos.d/
+      
+      # mongocli
+      - yum install -y mongodb-org
+      - mongo --version
+      - mongoimport --version
+      
+      # Install mysql client (8.0!)
+      # 
+      # NOTE: Doing a regular install on CodeBuild AML2 gives us a way out-of-date mysql client that does not support SAN (Subject Alternate Names) 
+      # which results in SSL certificate validation failures. See here: https://aws.amazon.com/premiumsupport/knowledge-center/rds-error-2026-ssl-connection/
+      # To make our life easier, we just use mysql8.0 (even though our cluster is 5.7)
+      #
+      # New gpg key needed in 2022 for mysql community edition
+      - rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+      
+      # This stopped working in Dec 2022
+      #- yum install -y https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+      #- yum install -y mysql-community-client
+      
+      # Try this: https://serverfault.com/questions/785778/yum-install-error-nothing-to-do-mysql-centos-7o
+      # https://dev.mysql.com/doc/mysql-repo-excerpt/8.0/en/linux-installation-yum-repo.html
+      - wget https://dev.mysql.com/get/mysql80-community-release-el7-7.noarch.rpm
+      - yum localinstall mysql80-community-release-el7-7.noarch.rpm -y
+      - yum install mysql-community-client -y
+      
+      - mysql --version 
+      
+      # psql for postgresql
+      # We want postgresql 13.  This seems to do the trick. 
+      - yum remove postgresql -y
+      - yum clean metadata
+      - cp pgdg.repo /etc/yum.repos.d/pgdg.repo 
+      - yum install postgresql13 -y
+      - psql --version
+
+      # Commenting this out to see if still required
+      # See here: https://stackoverflow.com/questions/69544409/cannot-use-amazon-linux-extras-in-aws-codebuild-image
+      #- PYTHON=python2 amazon-linux-extras enable postgresql13
+      #- yum clean metadata
+      #- yum install postgresql -y
+      #- psql --version
+      
+      
+      # Always good to know what version of AWS CLI you are dealing with...
+      - aws --version
+
+  build:
+    commands:
+      - echo Started on `date`. >> report.txt
+      
+      #
+      # Lets load some database schemas , and data
+      # This pipeline is idempotent, but be aware it wilL DROP your existing database(s)!
+      # This is desired, because we probably want to start each class or demo in a consistent, known state.
+      # Please also note this pipeline runs for ALL THE DATABASES!
+      # It is not meant to be a production, real-world example - the purpose is to get us set up to teach a class.
+      #
+      
+      # We use this as a simple status report for the build output.  By showing the database, that gives us a warm and fuzzy that the data import worked.
+      - echo "show databases;" > status.sql
+      
+      #
+      # MySql (MultiAZ Instance)
+      # This is the HR example schema:
+      # https://github.com/aws-samples/amazon-aurora-mysql-sample-hr-schema
+      
+      # IMPORTANT - no space between -p and password
+      # We are using mysql8.0 client - so using --ssl-mode=VERIFY_IDENTITY option for SSL.
+      - mysql -h $MYSQL_INSTANCE_HOST -P $MYSQL_INSTANCE_PORT -u $USER -p$PASSWORD --ssl-ca=global-bundle.pem --ssl-mode=VERIFY_IDENTITY < mysql-schema.sql
+      - mysql -h $MYSQL_INSTANCE_HOST -P $MYSQL_INSTANCE_PORT -u $USER -p$PASSWORD --ssl-ca=global-bundle.pem --ssl-mode=VERIFY_IDENTITY < status.sql >> report.txt
+     
+      #
+      #  MySql (Aurora)
+      #  Also the HR example schema:
+      # https://github.com/aws-samples/amazon-aurora-mysql-sample-hr-schema
+      
+      # IMPORTANT - no space between -p and password
+      - mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $USER -p$PASSWORD --ssl-ca=global-bundle.pem --ssl-mode=VERIFY_IDENTITY < mysql-schema.sql
+      - mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $USER -p$PASSWORD --ssl-ca=global-bundle.pem --ssl-mode=VERIFY_IDENTITY < status.sql >> report.txt
+      
+      #
+      #  Postgresql (Aurora)
+      #
+      
+      - psql --host=$PG_HOST --port=$PG_PORT "dbname=postgres user=$USER sslmode=verify-full sslrootcert=global-bundle.pem" < pg-schema.sql
+      # This is the equivalent of "show databases" in psql
+      - echo "\\l" >> pg-status.sql
+      - psql --host=$PG_HOST --port=$PG_PORT "dbname=postgres user=$USER sslmode=verify-full sslrootcert=global-bundle.pem" < pg-status.sql >> report.txt
+
+
+      #
+      #  Postgresql (RDS Multi-AZ Cluster)
+      #
+      
+      - psql --host=$POSTGRESQL_CLUSTER_HOST --port=$POSTGRESQL_CLUSTER_PORT "dbname=postgres user=$USER sslmode=verify-full sslrootcert=global-bundle.pem" < pg-schema.sql
+      # This is the equivalent of "show databases" in psql
+      - echo "\\l" >> pg-status.sql
+      - psql --host=$POSTGRESQL_CLUSTER_HOST --port=$POSTGRESQL_CLUSTER_PORT "dbname=postgres user=$USER sslmode=verify-full sslrootcert=global-bundle.pem" < pg-status.sql >> report.txt
+      
+      #
+      # Redshift (also uses psql)
+      #
+      # This is the TICKIT schema discussed in the Redshift documentation
+      # See: https://docs.aws.amazon.com/redshift/latest/dg/c_sampledb.html
+      #
+      
+      - psql --host=$RED_HOST --port=$RED_PORT --username=$USER --dbname=database-demo < redshift-tickit.sql
+      - echo "\\l" >> red-status.sql
+      - psql --host=$RED_HOST --port=$RED_PORT --username=$USER --dbname=database-demo < red-status.sql >> report.txt
+      # Download this on the fly - it's too big for our CFN seeded Repo (limit is 6 MB)
+      - wget -q https://docs.aws.amazon.com/redshift/latest/gsg/samples/tickitdb.zip 1> /dev/null
+      - unzip tickitdb.zip -d tickit
+      - aws s3 sync tickit s3://$RED_BUCKET/tickit
+      - echo "copy users from 's3://$RED_BUCKET/tickit/allusers_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" > redshift-copy.sql
+      - echo "copy venue from 's3://$RED_BUCKET/tickit/venue_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy category from 's3://$RED_BUCKET/tickit/category_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy date from 's3://$RED_BUCKET/tickit/date2008_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy event from 's3://$RED_BUCKET/tickit/allevents_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' timeformat 'YYYY-MM-DD HH:MI:SS' region '$REGION';" >> redshift-copy.sql
+      - echo "copy listing from 's3://$RED_BUCKET/tickit/listings_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy sales from 's3://$RED_BUCKET/tickit/sales_tab.txt' iam_role '$RED_COPY_ROLE' delimiter '\\t' timeformat 'MM/DD/YYYY HH:MI:SS' region '$REGION';" >> redshift-copy.sql
+      # We cat this out just for troubleshoot/debug
+      - cat redshift-copy.sql    
+      - psql --host=$RED_HOST --port=$RED_PORT --username=$USER --dbname=database-demo < redshift-copy.sql 
+
+      #
+      # Docdb via Mongoimport
+      # This is the "Cases" sample file from:
+      # https://github.com/aws-samples/amazon-documentdb-samples
+      #
+      
+      # First, download this file live. it's too big to put in the Repo (CFN Limits us to 6MB zip max)
+      - wget -q https://raw.githubusercontent.com/aws-samples/amazon-documentdb-samples/master/datasets/cases.json 1> /dev/null
+      - mongoimport --db cases --collection casecollection --host $DOCDB_HOST --port $DOCDB_PORT  --sslCAFile global-bundle.pem  --ssl  --authenticationDatabase admin --username $USER --password $PASSWORD --drop --file cases.json 1>/dev/null
+      
+      #
+      # Neptune via Loader REST API
+      #
+      
+      # This is the raw data to import
+      - aws s3 cp vertex.txt s3://$NEP_BUCKET
+      - aws s3 cp edges.txt s3://$NEP_BUCKET
+      
+      # Have to do a POST to tell the Neptune Loader to load the data. It will assume the role given. 
+      # By the way - the Loader MUST access S3 over a Gateway Endpoint - NATGW access WILL NOT WORK
+      # See here: https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html
+      # Example schema is from: https://github.com/aws-samples/amazon-neptune-samples/blob/master/gremlin/collaborative-filtering/README.md
+
+      # First, load the Vertex data
+      - DATA_VERTEX="{\"source\":\"s3://$NEP_BUCKET/vertex.txt\",\"iamRoleArn\":\"$NEP_LOAD_ROLE\",\"format\":\"csv\",\"region\":\"$REGION\",\"failOnError\":\"FALSE\"}"
+      - echo $DATA_VERTEX
+      # NOTE: YAML DOES NOT HANDLE A COLON SPACE. So do not reformat what you see below
+      - echo "We should see a 200 OK if this was successful."
+      - curl -X POST -H 'Content-Type:application/json' https://$NEP_HOST:$NEP_PORT/loader -d "$DATA_VERTEX"
+      # The above should return a status of 200 OK - Need error checking here.
+      
+      - echo "Sleep 30 to avoid any issues...(I don't know if this is really necessary....)"
+      - sleep 30
+      
+      # Now load the Edge data
+      - DATA_EDGE="{\"source\":\"s3://$NEP_BUCKET/edges.txt\",\"iamRoleArn\":\"$NEP_LOAD_ROLE\",\"format\":\"csv\",\"region\":\"$REGION\",\"failOnError\":\"FALSE\"}"
+      - echo $DATA_EDGE
+      # NOTE: YAML DOES NOT HANDLE A COLON SPACE. So do not reformat what you see below
+      - curl -X POST -H 'Content-Type:application/json' https://$NEP_HOST:$NEP_PORT/loader -d "$DATA_EDGE"
+    
+  post_build:
+    commands:
+      - echo Completed on `date` >> report.txt
+      - cat report.txt
+artifacts:
+    files: 
+      - report.txt

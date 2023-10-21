@@ -25,9 +25,124 @@ Resources:
       RepositoryDescription: "Database schema code"
       RepositoryName: !Join ["-", [!Ref Prefix, "schemas"]]
 
+  # CodePipeline will use this for Artifacts
+  ArtifactStoreBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+
+  CodePipelineArtifactStoreBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref ArtifactStoreBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: DenyInsecureConnections
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: !Join 
+              - ''
+              - - !GetAtt 
+                  - ArtifactStoreBucket
+                  - Arn
+                - /*
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+    
+    # Common IAM Role used by the CodePipelines to deploy via CloudFormation
+    CFNDeployRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - cloudformation.amazonaws.com
+              Action: 'sts:AssumeRole'
+        Path: /
+        Policies:
+          - PolicyName: !Join
+              - '-'
+              - - !Ref Prefix
+                - "cfn-deploy-backend"
+
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - 'iam:PassRole'
+                    - 'iam:CreateRole'
+                    - 'iam:DeleteRole'
+                    - 'iam:AttachRolePolicy'
+                    - 'iam:DeleteRolePolicy'
+                    - 'iam:DetachRolePolicy'
+                    - 'iam:PutRolePolicy'
+                    - 'iam:GetRole'
+                  Resource: !Join 
+                    - ''
+                    - - '*'
+                - Effect: Allow
+                  Action:
+                    - 'cloudformation:CreateChangeSet'
+                    - 'cloudformation:ExecuteChangeSet'
+                    - 'cloudformation:DescribeStacks'
+                    - 'cloudwatch:*'
+                    - 'ecs:*'
+                    - 'ec2:CreateSecurityGroup'
+                    - 'ec2:DescribeSecurityGroups'
+                    - 'ec2:DeleteSecurityGroup'
+                    - 'elasticloadbalancing:CreateTargetGroup'
+                    - 'elasticloadbalancing:DeleteTargetGroup'
+                    - 'elasticloadbalancing:DescribeTargetGroups'
+                    - 'elasticloadbalancing:ModifyTargetGroupAttributes'
+                    - 'elasticloadbalancing:DescribeListeners'
+                    - 'elasticloadbalancing:CreateListener'
+                    - 'elasticloadbalancing:DeleteListener'
+                    - 'logs:CreateLogGroup'
+                    - 'logs:DeleteLogGroup'
+                    - 'logs:Describe*'
+                    - 'logs:CreateLogStream'
+                    - 'logs:PutLogEvents'
+                    - 'ec2:AuthorizeSecurityGroupIngress'
+                    # TODO: Make more precise
+                    - 'rds:*'
+                    - 'sqs:*'
+                    - 'sns:*'
+                    - 'iam:GetPolicy'
+                    - 'iam:ListPolicyVersions'
+                    - 'iam:CreatePolicy'
+                    - 'iam:CreatePolicyVersion'
+                    - 'iam:DeletePolicy'
+                    - 'iam:DeletePolicyVersion'
+                    - 'ssm:PutParameter'
+                    - 'ssm:DeleteParameter'
+                    - 'ssm:AddTagsToResource'
+                  Resource: '*'
+
+  
 Outputs:
 
   AppRepo:
     Value: !GetAtt CodeCommitRepo.Name
     Export:
       Name: !Join ['-', [!Ref Prefix, 'Repo']]
+
+  ArtifactStoreBucket:
+    Description: Where the build artifacts go.
+    Value: !Ref ArtifactStoreBucket
+    Export:
+      Name: !Join ['-', [!Ref Prefix, 'ArtifactStoreBucket']]
+
+  CFNDeployRole:
+    Value: !GetAtt CFNDeployRole.Arn
+    Export:
+      Name: !Join ['-', [!Ref Prefix, 'CFNDeployRole']]
