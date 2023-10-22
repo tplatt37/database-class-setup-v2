@@ -1,0 +1,374 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "database-class-setup : RDS MySql Instance - CodePipeline / CodeBuild project to install database schemas"
+
+Parameters:
+  Prefix:
+    Type: String
+    Default: "database"
+    Description: "Used for the unique naming of resources and exports.  You probably should not change this."
+
+Resources:
+
+#  ___  __  ____  ____  ____  __  ____  ____  __    __  __ _  ____ 
+# / __)/  \(    \(  __)(  _ \(  )(  _ \(  __)(  )  (  )(  ( \(  __)
+#( (__(  O )) D ( ) _)  ) __/ )(  ) __/ ) _) / (_/\ )( /    / ) _) 
+# \___)\__/(____/(____)(__)  (__)(__)  (____)\____/(__)\_)__)(____) 
+# 
+#
+
+  SchemaPipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      Name: rds-instance 
+      ArtifactStore:
+          Type: S3
+          # Created in the repo.yaml stack
+          Location: !ImportValue 
+            Fn::Join: [ '-', [!Ref Prefix, "ArtifactStoreBucket"]]
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      Stages:
+
+        - Name: Source
+          Actions:
+            - Name: Schema-Code
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                BranchName: "main"
+                RepositoryName: "database-schemas"
+                PollForSourceChanges: false
+              RunOrder: 1
+
+        - Name: Create-Database
+          Actions:
+            - Name: Deploy-Backend
+              InputArtifacts:
+                # need to pass cfn yaml through from the source to the deploy stage.
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn: !ImportValue 
+                  Fn::Join: [ '-', [!Ref Prefix, "CFNDeployRole"]]
+                # We're updating an existing stack.
+                StackName: !Join [ "-", [ !Ref Prefix, "rds-instance"]]
+                # THIS IS COMING FROM THE APP SOURCE CODE
+                # This is the template that creates the dynamically named DDB table, SNS Topic, and SQS queue.
+                TemplatePath: "SourceOutput::rds-instance.yaml"
+                # We're changing a parameter of the template - to ensure unique resource names.
+                # See here: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/continuous-delivery-codepipeline-action-reference.html
+                ParameterOverrides: '{"Prefix":"database"}'
+
+        - Name: Build
+          Actions:
+            - Name: Install-Schema
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildArtifact
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref BuildProject
+              RunOrder: 1
+#
+#  ___  __  ____  ____  ____  _  _  __  __    ____ 
+# / __)/  \(    \(  __)(  _ \/ )( \(  )(  )  (    \
+#( (__(  O )) D ( ) _)  ) _ () \/ ( )( / (_/\ ) D (
+# \___)\__/(____/(____)(____/\____/(__)\____/(____/
+#
+
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+        Name: database-schema-install
+        Artifacts:
+            Type: CODEPIPELINE
+        Environment:
+            ComputeType: BUILD_GENERAL1_SMALL
+            # Al2 Latest : https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
+            Image: aws/codebuild/amazonlinux2-x86_64-standard:4.0
+            PrivilegedMode: false
+            Type: LINUX_CONTAINER
+            EnvironmentVariables:
+            - Name: BUCKET_NAME
+              Type: PLAINTEXT
+              Value: !ImportValue 
+                Fn::Join: [ '-', [!Ref Prefix, "ArtifactStoreBucket"]]
+        ServiceRole:
+            Fn::GetAtt:
+            - BuildRole
+            - Arn
+        VpcConfig:
+          VpcId:
+            Fn::ImportValue:
+                !Join
+                  - "-"
+                  - - !Ref Prefix
+                    - "VpcId"
+          Subnets:
+            Fn::Split:
+              - ','
+              - Fn::ImportValue:
+                  !Join
+                    - "-"
+                    - - !Ref Prefix
+                      - "PrivateSubnetIds"
+          SecurityGroupIds:
+            - Fn::ImportValue:
+                !Join
+                  - "-"
+                  - - !Ref Prefix
+                    - "DBSecurityGroup"
+
+        Source:
+            # Assume buildspec is in the source root directory
+            Type: CODEPIPELINE
+            BuildSpec: buildspec-rds-mysql.yml
+
+#
+#  ___  __     __   _  _  ____  _  _   __  ____  ___  _  _ 
+# / __)(  )   /  \ / )( \(    \/ )( \ / _\(_  _)/ __)/ )( \
+#( (__ / (_/\(  O )) \/ ( ) D (\ /\ //    \ )( ( (__ ) __ (
+# \___)\____/ \__/ \____/(____/(_/\_)\_/\_/(__) \___)\_)(_/
+# 
+
+  AmazonCloudWatchEventRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - CodeCommit Repository State Change
+        resources:
+          - !Join 
+            - ''
+            - - 'arn:aws:codecommit:'
+              - !Ref 'AWS::Region'
+              - ':'
+              - !Ref 'AWS::AccountId'
+              - ':'
+              - 'database-schemas'
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - main
+      Targets:
+        - Arn: !Join 
+            - ''
+            - - 'arn:aws:codepipeline:'
+              - !Ref 'AWS::Region'
+              - ':'
+              - !Ref 'AWS::AccountId'
+              - ':'
+              - !Ref SchemaPipeline
+          RoleArn: !GetAtt 
+            - AmazonCloudWatchEventRole
+            - Arn
+          Id: codepipeline-AppPipeline
+
+            
+#  __   __   _  _ 
+# (  ) / _\ ( \/ )
+#  )( /    \/ \/ \
+# (__)\_/\_/\_)(_/
+#
+  AmazonCloudWatchEventRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - events.amazonaws.com
+              Action: 'sts:AssumeRole'
+        Path: /
+        Policies:
+          - PolicyName: cwe-pipeline-execution
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action: 'codepipeline:StartPipelineExecution'
+                  Resource: !Join 
+                    - ''
+                    - - 'arn:aws:codepipeline:'
+                      - !Ref 'AWS::Region'
+                      - ':'
+                      - !Ref 'AWS::AccountId'
+                      - ':'
+                      - !Ref SchemaPipeline
+#  __   __   _  _ 
+# (  ) / _\ ( \/ )
+#  )( /    \/ \/ \
+# (__)\_/\_/\_)(_/
+#
+
+  CodePipelineServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: AWS-CodePipeline-Service-a-new-startup
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'codecommit:CancelUploadArchive'
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:GetUploadArchiveStatus'
+                  - 'codecommit:UploadArchive'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'codedeploy:CreateDeployment'
+                  - 'codedeploy:GetApplicationRevision'
+                  - 'codedeploy:GetDeployment'
+                  - 'codedeploy:GetDeploymentConfig'
+                  - 'codedeploy:RegisterApplicationRevision'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'devicefarm:ListProjects'
+                  - 'devicefarm:ListDevicePools'
+                  - 'devicefarm:GetRun'
+                  - 'devicefarm:GetUpload'
+                  - 'devicefarm:CreateUpload'
+                  - 'devicefarm:ScheduleRun'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:ListFunctions'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'elasticbeanstalk:*'
+                  - 'ec2:*'
+                  - 'elasticloadbalancing:*'
+                  - 'autoscaling:*'
+                  - 'cloudwatch:*'
+                  - 's3:*'
+                  - 'sns:*'
+                  - 'cloudformation:*'
+                  - 'rds:*'
+                  - 'sqs:*'
+                  - 'ecs:*'
+                Resource: '*'
+
+  BuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: CodeBuild-Role-a-new-startup
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'codebuild:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:ListFunctions'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                Resource: '*'
+                # ECR perms needed to build and push the testing container image
+              - Effect: Allow
+                Action:
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:CompleteLayerUpload'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:InitiateLayerUpload'
+                  - 'ecr:PutImage'
+                  - 'ecr:UploadLayerPart'
+                  - 'ecr:GetAuthorizationToken'
+                Resource: '*'
+                # Need to be able to retrieve Outputs from stacks...
+              - Effect: Allow
+                Action:
+                  - 'cloudformation:DescribeStacks'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'cloudwatch:*'
+                  - 'logs:CreateLogStream'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:PutLogEvents'
+                  - 's3:*'
+                  - 'cloudformation:ListExports'
+                  - 'ec2:DescribeSecurityGroups'
+                  - 'ec2:DescribeSubnets'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DeleteNetworkInterface'
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:DescribeDhcpOptions'
+                  - 'ec2:DescribeVpcs'
+                Resource: '*'
+              # See here for perms needed by CodeBuild to utilize a VPC
+              # https://docs.aws.amazon.com/codebuild/latest/userguide/auth-and-access-control-iam-identity-based-access-control.html#customer-managed-policies-example-create-vpc-network-interface
+              # TODO Need to lock this down as shown in example.
+              - Effect: "Allow"
+                Action:
+                  - 'ec2:CreateNetworkInterfacePermission'
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - 'secretsmanager:GetSecretValue'
+                Resource: 
+                  Fn::ImportValue:
+                    !Join ['-', [ !Ref Prefix, 'DBAdminSecretArn']]
+                    

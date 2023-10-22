@@ -1,0 +1,97 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      
+      #
+      # This is the buildspec.yml (CodeBuild "Build Instructions") that are used to load schema/database/data
+      # into each of the databases.  It's all done in one long build project for simplicity sake.
+      #
+      
+      # Dynamically determine which account we are. I do not want to embed any account id into these files.
+      - ACCOUNTID=$(aws sts get-caller-identity --query "Account" --output text)
+      - echo "AccountID=$ACCOUNTID"
+      
+      - REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
+      - echo "Region=$REGION"
+
+      # Which shell are we using?
+      - echo "Using shell..."
+      - ls -lha $(which sh) 
+
+       # Always good to know what version of AWS CLI you are dealing with...
+      - aws --version
+      
+      - PREFIX="database"
+      
+      # First, we have to pull a whole lot of information from the various Stack Exports.
+      
+      # MySQL Aurora
+      - MYSQL_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-MySqlEndpoint'].Value" --output text)
+      - echo "MYSQL_HOST=$MYSQL_HOST"
+
+      - MYSQL_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-MySqlPort'].Value" --output text)
+      - echo "MYSQL_PORT=$MYSQL_PORT"
+
+      # Use a combination of client side query and jq to parse out the username and password from the secret.
+      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
+      - USER=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.username')
+     
+      # Install other things that we need.
+  
+      # Get the PEM and crt files needed to connect securely to the databases
+      - wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+      - wget https://s3.amazonaws.com/redshift-downloads/amazon-trust-ca-bundle.crt
+      - wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+      - ls -lha *.pem
+      
+      # Install mysql client (8.0!)
+      # 
+      # NOTE: Doing a regular install on CodeBuild AML2 gives us a way out-of-date mysql client that does not support SAN (Subject Alternate Names) 
+      # which results in SSL certificate validation failures. See here: https://aws.amazon.com/premiumsupport/knowledge-center/rds-error-2026-ssl-connection/
+      # To make our life easier, we just use mysql8.0 (even though our cluster is 5.7)
+      #
+      # New gpg key needed in 2022 for mysql community edition
+      - rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+      
+      # Try this: https://serverfault.com/questions/785778/yum-install-error-nothing-to-do-mysql-centos-7o
+      # https://dev.mysql.com/doc/mysql-repo-excerpt/8.0/en/linux-installation-yum-repo.html
+      - wget https://dev.mysql.com/get/mysql80-community-release-el7-7.noarch.rpm
+      - yum localinstall mysql80-community-release-el7-7.noarch.rpm -y
+      - yum install mysql-community-client -y
+      
+      - mysql --version 
+      
+     
+  build:
+    commands:
+      - echo Started on `date`. >> report.txt
+      
+      #
+      # Lets load some database schemas , and data
+      # This pipeline is idempotent, but be aware it wilL DROP your existing database(s)!
+      # This is desired, because we probably want to start each class or demo in a consistent, known state.
+      # Please also note this pipeline runs for ALL THE DATABASES!
+      # It is not meant to be a production, real-world example - the purpose is to get us set up to teach a class.
+      #
+      
+      # We use this as a simple status report for the build output.  By showing the database, that gives us a warm and fuzzy that the data import worked.
+      - echo "show databases;" > status.sql
+     
+      #
+      #  MySql (Aurora)
+      #  Also the HR example schema:
+      # https://github.com/aws-samples/amazon-aurora-mysql-sample-hr-schema
+      
+      # IMPORTANT - no space between -p and password
+      - mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $USER -p$PASSWORD --ssl-ca=global-bundle.pem --ssl-mode=VERIFY_IDENTITY < mysql-schema.sql
+      - mysql -h $MYSQL_HOST -P $MYSQL_PORT -u $USER -p$PASSWORD --ssl-ca=global-bundle.pem --ssl-mode=VERIFY_IDENTITY < status.sql >> report.txt
+    
+  post_build:
+    commands:
+      - echo Completed on `date` >> report.txt
+      - cat report.txt
+artifacts:
+    files: 
+      - report.txt
