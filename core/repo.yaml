@@ -122,6 +122,8 @@ Resources:
                   - 'codepipeline:DeletePipeline'
                   - 'codebuild:DeleteProject'
                   - 's3:CreateBucket'
+                  - 's3:DeleteBucket'
+                  - 's3:SetBucketEncryption'
                   - 'redshift:CreateClusterSubnetGroup'
                   - 'redshift:*'
 
