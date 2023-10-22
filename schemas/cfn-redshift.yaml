@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  database-class-setup : Redshift cluster.
+  
+Parameters:
+
+  Prefix:
+    Description: "String used in resource names and exports to ensure uniqueness."
+    Default: database
+    Type: String
+
+Resources:
+
+  ClusterSubnetGroup:
+    Type: "AWS::Redshift::ClusterSubnetGroup"
+    Properties:
+      Description: !Join ["-" , [!Ref Prefix, "ClusterSubnetGroup"]]
+      SubnetIds:
+        Fn::Split:
+          - ','
+          - Fn::ImportValue:
+              !Join
+                - '-'
+                - - !Ref Prefix
+                  - "PrivateSubnetIds"
+                  
+  # Will use this bucket to COPY data
+  CopyBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+  
+  # Will use this role when we COPY data from the bucket
+  CopyS3Role:
+    Type: 'AWS::IAM::Role'
+    # https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - redshift.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: !Join ["-", [!Ref Prefix, "S3RedshiftCopyPolicy"]]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - "s3:Get*"
+                  - "s3:List*"
+                Resource: "*"
+
+  Redshift:
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-Redshift-dbcluster.html
+    Type: 'AWS::Redshift::Cluster'
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      # NOTE: username and password are coming from the secret created earlier in this stack.
+      # To make it even more complicated, the Secret was created in another stack so we are going to ImportValue of the Secret Arn
+      MasterUsername:
+        !Join 
+          - ''
+          - - '{{resolve:secretsmanager:'
+            - Fn::ImportValue:
+                !Join
+                  - "-"
+                  - - !Ref Prefix
+                    - "DBAdminSecretArn"
+            - ':SecretString:username}}'
+      MasterUserPassword:
+        !Join 
+          - ''
+          - - '{{resolve:secretsmanager:'
+            - Fn::ImportValue:
+                !Join
+                  - "-"
+                  - - !Ref Prefix
+                    - "DBAdminSecretArn"
+            - ':SecretString:password}}'
+      ClusterSubnetGroupName: !Ref ClusterSubnetGroup
+      VpcSecurityGroupIds:
+        - Fn::ImportValue:
+            !Join
+              - "-"
+              - - !Ref Prefix
+                - "DBSecurityGroup"
+      ClusterType: multi-node
+      DBName: !Join ["-", [!Ref Prefix,"demo"]]
+      Encrypted: True
+      NodeType: dc2.large
+      NumberOfNodes: 2
+      Port: 5439
+      PubliclyAccessible: False
+      IamRoles:
+        - !GetAtt CopyS3Role.Arn
+        
+Outputs:
+
+  Redshift:
+    Value: !Ref Redshift
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "RedshiftName"]]
+      
+  RedshiftPort:
+    Value: !GetAtt Redshift.Endpoint.Port
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "RedshiftPort"]]
+      
+  RedshiftEndpoint:
+    Value: !GetAtt Redshift.Endpoint.Address
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "RedshiftEndpoint"]]
+      
+  CopyBucket:
+    Value: !Ref CopyBucket
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "RedshiftCopyBucket"]]
+      
+  CopyS3RoleArn:
+    Value: !GetAtt CopyS3Role.Arn
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "RedshiftCopyS3Role"]]
+  

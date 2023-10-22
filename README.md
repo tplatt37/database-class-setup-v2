@@ -23,9 +23,10 @@ The recommended way to create the VPC is to use the included 01-vpc-3az.sh scrip
 # Demo Options
 
 This package is capable of creating:
+* RDS MySQL Multi-Az Instance (with primary/standby)
 * RDS Aurora MySQL Multi-Az Instance (with primary/standby)
 * RDS Aurora Postgres Multi-Az Instance (with primary/standby)
-* RDS Postgres Multi-AZ Cluster (with primary and two readable standbys)
+* RDS Postgres Multi-AZ Cluster (with primary and TWO READABLE standbys)
 * Redshift cluster (data warehouse)
 * Neptune cluster (Graph database)
 * DocumentDB (document style database, MongoDB compatible)

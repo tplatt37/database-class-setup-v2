@@ -1,0 +1,121 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      
+      #
+      # This is the buildspec.yml (CodeBuild "Build Instructions") that are used to load schema/database/data
+      # into each of the databases.  It's all done in one long build project for simplicity sake.
+      #
+      
+      # Dynamically determine which account we are. I do not want to embed any account id into these files.
+      - ACCOUNTID=$(aws sts get-caller-identity --query "Account" --output text)
+      - echo "AccountID=$ACCOUNTID"
+      
+      - REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
+      - echo "Region=$REGION"
+
+      # Which shell are we using?
+      - echo "Using shell..."
+      - ls -lha $(which sh) 
+      
+      # Always good to know what version of AWS CLI you are dealing with...
+      - aws --version
+
+      - PREFIX="database"
+      
+      # First, we have to pull a whole lot of information from the various Stack Exports.
+      # Redshift
+      - RED_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftEndpoint'].Value" --output text)
+      - echo "RED_HOST=$RED_HOST"
+
+      - RED_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftPort'].Value" --output text)
+      - echo "RED_PORT=$RED_PORT"
+
+      - RED_COPY_ROLE=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftCopyS3Role'].Value" --output text)
+      - echo "RED_COPY_ROLE=$RED_COPY_ROLE"
+      
+      - RED_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftCopyBucket'].Value" --output text)
+      - echo "RED_BUCKET=$RED_BUCKET"
+  
+      # Get the dbadmin password from SecretsManager
+      # But first, need to grab the ARN of it from a stack export
+      - SECRET_ARN=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DBAdminSecretArn'].Value" --output text)
+      - echo "SECRET_ARN=$SECRET_ARN" 
+      
+      # Use a combination of client side query and jq to parse out the username and password from the secret.
+      - USER=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.username')
+      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
+      # For debugging purposes show the LENGTH of the USER/PASSWORD 
+      # If it's ZERO that means an issue retrieving it from SecretsManager.
+      - echo "Lengths:"
+      - echo ${#USER}
+      - echo ${#PASSWORD}
+  
+      # We set PGPASSWORD , which Psql knows to use.
+      - export PGPASSWORD=$PASSWORD
+
+      # Install other things that we need.
+  
+      # Get the PEM and crt files needed to connect securely to the databases
+      - wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+      - wget https://s3.amazonaws.com/redshift-downloads/amazon-trust-ca-bundle.crt
+      - wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+      - ls -lha *.pem
+      
+      # psql for postgresql
+      # We want postgresql 13.  This seems to do the trick. 
+      - yum remove postgresql -y
+      - yum clean metadata
+      - cp pgdg.repo /etc/yum.repos.d/pgdg.repo 
+      - yum install postgresql13 -y
+      - psql --version
+  
+  build:
+    commands:
+      - echo Started on `date`. >> report.txt
+      
+      #
+      # Lets load some database schemas , and data
+      # This pipeline is idempotent, but be aware it wilL DROP your existing database(s)!
+      # This is desired, because we probably want to start each class or demo in a consistent, known state.
+      # Please also note this pipeline runs for ALL THE DATABASES!
+      # It is not meant to be a production, real-world example - the purpose is to get us set up to teach a class.
+      #
+      
+      # We use this as a simple status report for the build output.  By showing the database, that gives us a warm and fuzzy that the data import worked.
+      - echo "show databases;" > status.sql
+      
+      #
+      # Redshift (also uses psql)
+      #
+      # This is the TICKIT schema discussed in the Redshift documentation
+      # See: https://docs.aws.amazon.com/redshift/latest/dg/c_sampledb.html
+      #
+      
+      - psql --host=$RED_HOST --port=$RED_PORT --username=$USER --dbname=database-demo < redshift-tickit.sql
+      - echo "\\l" >> red-status.sql
+      - psql --host=$RED_HOST --port=$RED_PORT --username=$USER --dbname=database-demo < red-status.sql >> report.txt
+      # Download this on the fly - it's too big for our CFN seeded Repo (limit is 6 MB)
+      - wget -q https://docs.aws.amazon.com/redshift/latest/gsg/samples/tickitdb.zip 1> /dev/null
+      - unzip tickitdb.zip -d tickit
+      - aws s3 sync tickit s3://$RED_BUCKET/tickit
+      - echo "copy users from 's3://$RED_BUCKET/tickit/allusers_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" > redshift-copy.sql
+      - echo "copy venue from 's3://$RED_BUCKET/tickit/venue_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy category from 's3://$RED_BUCKET/tickit/category_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy date from 's3://$RED_BUCKET/tickit/date2008_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy event from 's3://$RED_BUCKET/tickit/allevents_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' timeformat 'YYYY-MM-DD HH:MI:SS' region '$REGION';" >> redshift-copy.sql
+      - echo "copy listing from 's3://$RED_BUCKET/tickit/listings_pipe.txt' iam_role '$RED_COPY_ROLE' delimiter '|' region '$REGION';" >> redshift-copy.sql
+      - echo "copy sales from 's3://$RED_BUCKET/tickit/sales_tab.txt' iam_role '$RED_COPY_ROLE' delimiter '\\t' timeformat 'MM/DD/YYYY HH:MI:SS' region '$REGION';" >> redshift-copy.sql
+      # We cat this out just for troubleshoot/debug
+      - cat redshift-copy.sql    
+      - psql --host=$RED_HOST --port=$RED_PORT --username=$USER --dbname=database-demo < redshift-copy.sql 
+
+  post_build:
+    commands:
+      - echo Completed on `date` >> report.txt
+      - cat report.txt
+artifacts:
+    files: 
+      - report.txt

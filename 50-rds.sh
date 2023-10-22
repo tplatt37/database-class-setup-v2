@@ -45,11 +45,14 @@ main() {
   #--parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
   #--parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
 
+  # NOTE: Weird 400 error -not working - 2023-10-22 - might be intermittent problem.
+  #--parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
+
   
   aws cloudformation deploy \
    --template-file pipelines/pipeline-template.yaml \
-   --parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
-   --stack-name $PREFIX-pipeline-postgres-cluster \
+   --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
+   --stack-name $PREFIX-pipeline-redshift \
    --capabilities CAPABILITY_NAMED_IAM \
    --region $REGION
 
