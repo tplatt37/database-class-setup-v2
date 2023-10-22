@@ -121,6 +121,9 @@ Resources:
                   - 'events:RemoveTargets'
                   - 'codepipeline:DeletePipeline'
                   - 'codebuild:DeleteProject'
+                  - 's3:CreateBucket'
+                  - 'redshift:CreateClusterSubnetGroup'
+                  - 'redshift:*'
 
                   - 'sqs:*'
                   - 'sns:*'
