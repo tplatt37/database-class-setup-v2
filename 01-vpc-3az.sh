@@ -50,7 +50,11 @@ main() {
   echo "Setting up VPC (in $REGION)..."
   
   # NOTE: We're using 3 AZs, but this template also supports 2 (see parameter).
-  aws cloudformation deploy --template-file core/vpc-multi-az.yaml --parameter-overrides UseThirdAZ=True --stack-name $PREFIX-vpc --region $REGION
+  aws cloudformation deploy \
+    --template-file core/vpc-multi-az.yaml \
+    --parameter-overrides UseThirdAZ=True UseNATGateway=True \
+    --stack-name $PREFIX-vpc \
+    --region $REGION
 
 }
 

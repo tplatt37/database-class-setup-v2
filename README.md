@@ -13,9 +13,12 @@ Requires:
 * jq
 * Bash shell
 
-Additional pre-requisites:
-* A VPC created via the Super-VPC package.
+Additional VPC pre-requisites:
+* A VPC with the appropriate number of AZs (three if you want to use the Multi-AZ cluster) or two otherwise (for Multi-AZ instance)
+* VPC MUST have NAT Gateway - because we use CodeBuild (connected to VPC) to deploy the schema it needs to connect to various services: Secrets Manager, S3 (artifacts), CloudWatch (log output), etc. 
+* VPC Must have a DBSubnetGroup for the various databases to use. (And Security Group rules for ingress on 3306, etc.)
 
+The recommended way to create the VPC is to use the included 01-vpc-3az.sh script, or the Super-VPC package.
 
 # Demo Options
 
@@ -37,7 +40,12 @@ This package can also install the required client tools (CLI) for demonstrating 
 
 # Install
 
-To install, run
+Create the VPC needed:
+```
+./01-vpc-3az.sh
+```
+
+To install database examples, run
 ```
 ./install.sh --bucket "private-bucket-name" --demos "multiaz-instance-mysql,redshift,documentdb,neptune,multiaz-cluster-postgress" --region us-east-1
 ```
@@ -50,12 +58,27 @@ Each CodePipeline will run separately.
 
 # Connecting to the databases
 
+## Network Connectivity
+
+Whichever VPC you are going to connect from must have connectivity to the VPC where the databases reside.
+
+You can easily accomplish this by running the included VPC Peering helper script.
+Simply run this on the machine that you wish to use for demos:
+```
+./peer.sh
+```
+
+That script will setup VPC Peering, Route table entries (on both sides), and set the Security Group rules used by the databases to allow connections on the common ports (3306, 5432, etc.)
+
+## Database CLI tools
+
 For ease of use, there are a set of helper scripts that make it easy to connect to and utilize the databases from the command line.
 
 For example, to use the psql CLI to connect to the Multi-AZ PostgresSQL Cluster :
 ```
 ./11-get-certs.sh
-scripts/connect-pg ....
+cd scripts
+./connect-mysql.sh --database multiaz-instance --mode rw --region us-west-2
 ```
 
 The helper script retrieves the endpoint, ports, username, password, etc. automatically.
@@ -67,6 +90,13 @@ For convenience, there is a monolithic un-installer that will determine which st
 ```
 ./uninstall.sh --region us-east-1 --force yes
 ```
+
+You should then UN-peer any VPC connectivity:
+```
+./unpeer.sh
+```
+
+Finally, you should delete the VPC stack - which can be done without a helper script.
 
 # TODO
 

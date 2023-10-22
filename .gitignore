@@ -1,1 +1,19 @@
+# All of these are temporary files, or are downloaded at time of install, so don't check them into git.
 database-schemas.zip
+*.crt
+*.pem
+# tinkerpop/gremlin for Neptune
+apache-tinkerpop-gremlin-console-3.6.5-bin.zip
+apache-tinkerpop-gremlin-console-3.6.5
+apache-tinkerpop-gremlin-console-3.4.8
+apache-tinkerpop-gremlin-console-3.4.8-bin.zip
+# mongosh
+SFSRootCAG2.cer
+# ssl/tls certs provided by Amazon
+scripts/amazon-trust-ca-bundle.crt*
+scripts/rds-combined-ca-bundle.pem*
+global-bundle.pem*
+scripts/global-bundle.pem.1
+scripts/global-bundle.pem*
+*.cer.1
+*.zip.*

@@ -62,9 +62,16 @@ Parameters:
     AllowedValues: ["True","False"]
     Description: "Set to True to use 3 AZs.  Note that this will require an additional EIP for the NATGW."
 
+  #
+  # You should leave this as default of True
+  # The CodeBuild project must have access to S3, SecretsManager, Cloudwatch (logs), CodeBuild,etc.
+  # And *May not* support VPC interface endpoints
+  # I decided it was easier to just always use NATGateway 
+  # Once you create all those endpoints, the cost overhead per hour will be similar
+  #
   UseNATGateway:
     Type: String
-    Default: "False"
+    Default: "True"
     AllowedValues: ["True", "False"]
     Description: "Set to true to have NAT Gateways created for private subnets. This increases cost."
 
@@ -76,6 +83,9 @@ Conditions:
   CreateNATGateway: !Equals
     - !Ref UseNATGateway
     - "True"
+  NoNATGateway: !Equals
+    - !Ref UseNATGateway
+    - "False"
   CreateThirdAZAndCreateNATGateway: !And
   - !Condition CreateThirdAZ
   - !Condition CreateNATGateway
@@ -422,6 +432,24 @@ Resources:
       SubnetId: !Ref PrivateSubnet03
       RouteTableId: !Ref PrivateRouteTable03
 
+  # Neptune:
+  # ALWAYS Required for Neptune to be able to load data from S3 (even with NAT Gateway)
+  # As per: https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html
+  
+  VPCS3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    # An S3 Gateway Endpoint
+    Properties:
+      # This is a GATEWAY endpoint
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable01
+        - !Ref PrivateRouteTable02
+        - !If [CreateThirdAZ, !Ref PrivateRouteTable03, !Ref AWS::NoValue]
+          
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref VPC
+
   DBSecurityGroup: 
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -518,20 +546,6 @@ Resources:
         - !Ref PrivateSubnet02
         - !If [CreateThirdAZ, !Ref PrivateSubnet03, !Ref AWS::NoValue]
           
-  VPCS3Endpoint:
-    Type: AWS::EC2::VPCEndpoint
-    # Required for Neptune to be able to load data from S3.
-    # As per: https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html
-    Properties:
-      # This is a GATEWAY endpoint
-      RouteTableIds:
-        - !Ref PublicRouteTable
-        - !Ref PrivateRouteTable01
-        - !Ref PrivateRouteTable02
-        - !If [CreateThirdAZ, !Ref PrivateRouteTable03, !Ref AWS::NoValue]
-          
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
-      VpcId: !Ref VPC
 
 Outputs:
 
