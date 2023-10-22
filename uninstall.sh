@@ -110,6 +110,14 @@ main() {
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
+  STACK_NAME=$PREFIX-pipeline-aurora-postgres-instance
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+
+  STACK_NAME=$PREFIX-aurora-postgres-instance
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+
   STACK_NAME=$PREFIX-pipeline-redshift
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
