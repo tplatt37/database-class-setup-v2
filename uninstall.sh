@@ -148,12 +148,22 @@ main() {
   # Otherwise you'll get:
   # Export database-DBAdminSecretArn cannot be deleted as it is in use by database-pipeline-aurora-mysql-instance, database-pipeline-rds-mysql-instance and database-rds-mysql-instance
   #
-  # We need a sleep even, because the stacks can be gone, but there will still be a short period of time where the dependency seems to exist (eventual consistency in the RDS Control Plane?)
-  echo "Sleeping to ensure stack dependencies are gone..."
-  sleep 300
-
   STACK_NAME=$PREFIX-rds-instance
   aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+
+  STACK_NAME=$PREFIX-rds-mysql-instance
+  aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+  
+  STACK_NAME=$PREFIX-aurora-mysql-instance
+  aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+  
+  STACK_NAME=$PREFIX-aurora-postgres-instance
+  aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+  
+  STACK_NAME=$PREFIX-redshift
+  aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+  
+  # Now, we can delete these.
 
   STACK_NAME=$PREFIX-repo
   echo "Deleting ($STACK_NAME) ..."
