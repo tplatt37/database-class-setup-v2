@@ -91,15 +91,20 @@ phases:
       - RED_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-RedshiftCopyBucket'].Value" --output text)
       - echo "RED_BUCKET=$RED_BUCKET"
   
-
       # Get the dbadmin password from SecretsManager
       # But first, need to grab the ARN of it from a stack export
       - SECRET_ARN=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DBAdminSecretArn'].Value" --output text)
+      - echo "SECRET_ARN=$SECRET_ARN" 
       
       # Use a combination of client side query and jq to parse out the username and password from the secret.
-      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
       - USER=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.username')
-     
+      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
+      # For debugging purposes show the LENGTH of the USER/PASSWORD 
+      # If it's ZERO that means an issue retrieving it from SecretsManager.
+      - echo "Lengths:"
+      - echo ${#USER}
+      - echo ${#PASSWORD}
+  
       # We set PGPASSWORD , which Psql knows to use.
       - export PGPASSWORD=$PASSWORD
 

@@ -38,6 +38,7 @@ phases:
       # Get the dbadmin password from SecretsManager
       # But first, need to grab the ARN of it from a stack export
       - SECRET_ARN=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DBAdminSecretArn'].Value" --output text)
+      - echo "SECRET_ARN=$SECRET_ARN" 
       
       # Use a combination of client side query and jq to parse out the username and password from the secret.
       - USER=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.username')
