@@ -41,14 +41,14 @@ main() {
 
   echo "Creating CodePipeline ... ($REGION) ..."
   
-   #--parameter-overrides Name=rds-mysql-instance DatabaseTemplate=icfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
-  
-
+  #--parameter-overrides Name=rds-mysql-instance DatabaseTemplate=icfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
+  #--parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
+ 
   
   aws cloudformation deploy \
    --template-file pipelines/pipeline-template.yaml \
-   --parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
-   --stack-name $PREFIX-pipeline-aurora-mysql-instance \
+   --parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
+   --stack-name $PREFIX-pipeline-aurora-postgres-instance \
    --capabilities CAPABILITY_NAMED_IAM \
    --region $REGION
 
