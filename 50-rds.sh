@@ -43,12 +43,13 @@ main() {
   
   #--parameter-overrides Name=rds-mysql-instance DatabaseTemplate=icfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
   #--parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
- 
+  #--parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
+
   
   aws cloudformation deploy \
    --template-file pipelines/pipeline-template.yaml \
-   --parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
-   --stack-name $PREFIX-pipeline-aurora-postgres-instance \
+   --parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
+   --stack-name $PREFIX-pipeline-postgres-cluster \
    --capabilities CAPABILITY_NAMED_IAM \
    --region $REGION
 

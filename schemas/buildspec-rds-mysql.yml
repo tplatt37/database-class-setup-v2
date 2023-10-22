@@ -40,9 +40,14 @@ phases:
       - SECRET_ARN=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DBAdminSecretArn'].Value" --output text)
       
       # Use a combination of client side query and jq to parse out the username and password from the secret.
-      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
       - USER=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.username')
-     
+      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
+      # For debugging purposes show the LENGTH of the USER/PASSWORD 
+      # If it's ZERO that means an issue retrieving it from SecretsManager.
+      echo "Lengths:"
+      echo ${#USER}
+      echo ${#PASSWORD}
+
       # Install other things that we need.
   
       # Get the PEM and crt files needed to connect securely to the databases

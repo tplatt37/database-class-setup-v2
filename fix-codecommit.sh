@@ -7,9 +7,10 @@
 #
 
 cd ~/repo
+rm -rf database-schemas
 git clone codecommit::us-east-1://database-schemas
 
-cp ~/repo/database-class-setup-v2/schemas/* cd ~/repo/database-schemas
+cp ~/repo/database-class-setup-v2/schemas/* ~/repo/database-schemas
 cd ~/repo/database-schemas
 git add . 
 git commit -am "manual updates..."
