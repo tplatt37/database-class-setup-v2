@@ -43,9 +43,9 @@ phases:
       - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
       # For debugging purposes show the LENGTH of the USER/PASSWORD 
       # If it's ZERO that means an issue retrieving it from SecretsManager.
-      echo "Lengths:"
-      echo ${#USER}
-      echo ${#PASSWORD}
+      - echo "Lengths:"
+      - echo ${#USER}
+      - echo ${#PASSWORD}
  
       # We set PGPASSWORD , which Psql knows to use.
       - export PGPASSWORD=$PASSWORD
