@@ -1,9 +1,6 @@
 version: 0.2
 
 phases:
-  install:
-    runtime-versions:
-      python: 3.9
   pre_build:
     commands:
       
@@ -23,6 +20,9 @@ phases:
       - echo "Using shell..."
       - ls -lha $(which sh) 
       
+      # Always good to know what version of AWS CLI you are dealing with...
+      - aws --version
+
       - PREFIX="database"
       
       # First, we have to pull a whole lot of information from the various Stack Exports.
@@ -109,7 +109,7 @@ phases:
       - wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
       - wget https://s3.amazonaws.com/redshift-downloads/amazon-trust-ca-bundle.crt
       - wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
-      - ls -lha *.{pem,crt}
+      - ls -lha *.pem
       
       # https://docs.mongodb.com/manual/tutorial/install-mongodb-on-amazon/
       # First, mongo
@@ -157,9 +157,7 @@ phases:
       #- psql --version
       
       
-      # Always good to know what version of AWS CLI you are dealing with...
-      - aws --version
-
+  
   build:
     commands:
       - echo Started on `date`. >> report.txt

@@ -94,11 +94,19 @@ main() {
 
   # Keep this order! 
   # NOTE: We are deleting both the PIPELINE and the Stack it produced (the actual datsbase.)
-  STACK_NAME=$PREFIX-pipeline-rds-instance
+  STACK_NAME=$PREFIX-pipeline-rds-mysql-instance
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
-  STACK_NAME=$PREFIX-rds-instance
+  STACK_NAME=$PREFIX-rds-mysql-instance
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+
+  STACK_NAME=$PREFIX-pipeline-aurora-mysql
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+
+  STACK_NAME=$PREFIX-aurora-mysql
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
@@ -123,16 +131,16 @@ main() {
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
-  STACK_NAME=$PREFIX-repo
-  echo "Deleting ($STACK_NAME) ..."
-  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
-
+  
   #
   # The Secrets can't be deleted until the db stacks are gone.
   #
   STACK_NAME=$PREFIX-rds-instance
   aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
 
+  STACK_NAME=$PREFIX-repo
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
   STACK_NAME=$PREFIX-secrets
   echo "Deleting ($STACK_NAME) ..."
@@ -148,6 +156,7 @@ main() {
 
   echo "Before you remove the $PREFIX-vpc stack you might want to ./unpeer.sh"
 
+  exit 0
 }
 
 err() {
