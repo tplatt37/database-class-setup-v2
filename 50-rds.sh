@@ -40,9 +40,13 @@ main() {
   REGION=${REGION_ARG:-${AWS_DEFAULT_REGION:-$(aws configure get default.region)}}
 
   echo "Creating CodePipeline ... ($REGION) ..."
+  
+   #--parameter-overrides Name=rds-mysql-instance DatabaseTemplate=icfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
+  
+
+  
   aws cloudformation deploy \
    --template-file pipelines/pipeline-template.yaml \
-   #--parameter-overrides Name=rds-mysql-instance DatabaseTemplate=icfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
    --parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
    --stack-name $PREFIX-pipeline-aurora-mysql-instance \
    --capabilities CAPABILITY_NAMED_IAM \
