@@ -99,8 +99,8 @@ Resources:
             Type: CODEPIPELINE
         Environment:
             ComputeType: BUILD_GENERAL1_SMALL
-            # Ubuntu 7.0
-            Image: aws/codebuild/standard:7.0            
+            # Al2 Latest : https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
+            Image: aws/codebuild/amazonlinux2-x86_64-standard:4.0
             PrivilegedMode: false
             Type: LINUX_CONTAINER
             EnvironmentVariables:

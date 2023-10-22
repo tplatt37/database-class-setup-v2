@@ -151,7 +151,7 @@ main() {
   echo "ROUTE_TABLE_ID_1=$ROUTE_TABLE_ID_1"
 
   echo "Removing Route Table entry 1 ..."
-  aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID_1 --destination-cidr-block $EC2_CIDR_BLOCK
+  aws ec2 delete-route --route-table-id $ROUTE_TABLE_ID_1 --region $REGION --destination-cidr-block $EC2_CIDR_BLOCK
 
   #
   # Subnet 02
