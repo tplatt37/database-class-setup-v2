@@ -166,7 +166,11 @@ main() {
   STACK_NAME=$PREFIX-redshift
   aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
   
-  # Now, we can delete these.
+  # Now, we can delete these...
+  # ... but only after a 5 minute sleep. THere are some delays between the db stacks being 
+  # gone and the ability to delete these!
+  echo "Sleeping 5 minutes due to delays in dependencies..."
+  sleep 300
 
   STACK_NAME=$PREFIX-repo
   echo "Deleting ($STACK_NAME) ..."
