@@ -48,11 +48,14 @@ main() {
   # NOTE: Weird 400 error -not working - 2023-10-22 - might be intermittent problem.
   #--parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
 
+  # Not working perms
+  #   --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
+
   
   aws cloudformation deploy \
    --template-file pipelines/pipeline-template.yaml \
-   --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
-   --stack-name $PREFIX-pipeline-redshift \
+   --parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
+   --stack-name $PREFIX-pipeline-postgres-cluster \
    --capabilities CAPABILITY_NAMED_IAM \
    --region $REGION
 
