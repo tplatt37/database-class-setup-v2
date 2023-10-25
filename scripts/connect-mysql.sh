@@ -57,7 +57,8 @@ main() {
 
   PREFIX="database"
 
-  if [[ "$DATABASE" == "multiaz-instance" ]]; then
+  # RDS MySQL Instance
+  if [[ "$DATABASE" == "multiaz-rds" ]]; then
     if [[ "$MODE" == "rw" ]]; then
       HOST_EXPORT_NAME="$PREFIX-MySqlInstanceEndpoint"
     else
@@ -67,7 +68,8 @@ main() {
     PORT_EXPORT_NAME="$PREFIX-MySqlInstancePort"
   fi
   
-  if [[ "$DATABASE" == "multiaz-cluster" ]]; then
+  # Aurora Mysql Instance
+  if [[ "$DATABASE" == "multiaz-aurora" ]]; then
     if [[ "$MODE" == "rw" ]]; then
       HOST_EXPORT_NAME="$PREFIX-MySqlEndpoint"
     else
@@ -127,7 +129,7 @@ usage() {
         echo " "
         echo " Easy way to connect to the MySQL MultiAZ Instance or MultiAZ Cluster databases created by these templates."
         echo " "
-        echo " --database : Which database - either multiaz-instance or multiaz-cluster"
+        echo " --database : Which database - either multiaz-rds or multiaz-aurora"
         echo " --mode : Which mode - ro (Read Only) or rw (Read/Write)"
         echo " --region : Region (Optional)"
         echo " --help : This help"

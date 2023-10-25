@@ -54,8 +54,8 @@ main() {
   
   aws cloudformation deploy \
    --template-file pipelines/pipeline-template.yaml \
-   --parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
-   --stack-name $PREFIX-pipeline-postgres-cluster \
+   --parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
+   --stack-name $PREFIX-pipeline-aurora-mysql-instance \
    --capabilities CAPABILITY_NAMED_IAM \
    --region $REGION
 
