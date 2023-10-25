@@ -151,8 +151,8 @@ validate_arguments() {
     exit 1
   fi
 
-  if [[ "$DATABASE" != "multiaz-instance" && "$DATABASE" != "multiaz-cluster" ]]; then
-    err "Database must be either multiaz-instance or multiaz-cluster."
+  if [[ "$DATABASE" != "multiaz-rds" && "$DATABASE" != "multiaz-aurora" ]]; then
+    err "Database must be either multiaz-rds or multiaz-aurora."
     usage
     exit 1
   fi
