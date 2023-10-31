@@ -88,7 +88,7 @@ main() {
        "rds-cluster")
           aws cloudformation deploy \
           --template-file pipelines/pipeline-template.yaml \
-          --parameter-overrides Name=rds-cluster DatabaseTemplate=rds-cluster.yaml Buildspec=buildspec-postgres-cluster \
+          --parameter-overrides Name=rds-cluster DatabaseTemplate=rds-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
            --stack-name $PREFIX-pipeline-rds-cluster \
           --capabilities CAPABILITY_NAMED_IAM \
           --region $REGION
