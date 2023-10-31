@@ -46,16 +46,18 @@ main() {
   #--parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
 
   # NOTE: Weird 400 error -not working - 2023-10-22 - might be intermittent problem.
+  # NOTE: I just can't get this working - have tried all kinds of things and it works fine 
+  # from my CLI, but won't deploy via pipeline!
   #--parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
 
-  # Not working perms
+  # Works with admin perms
   #   --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
 
   
   aws cloudformation deploy \
    --template-file pipelines/pipeline-template.yaml \
-   --parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster-2.yaml Buildspec=buildspec-postgres-cluster.yml BuildspecDeploy=buildspec-postgres-cluster-deploy.yml \
-   --stack-name $PREFIX-pipeline-postgres-cluster \
+   --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
+   --stack-name $PREFIX-pipeline-redshift \
    --capabilities CAPABILITY_NAMED_IAM \
    --region $REGION
 

@@ -24,7 +24,7 @@ Resources:
       #
       # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-dbcluster.html#cfn-rds-dbcluster-engineversion
       # aws rds describe-db-engine-versions --engine aurora-postgresql --query "DBEngineVersions[].EngineVersion"
-      EngineVersion: "15.3"
+      EngineVersion: "15.4"
       # Must use provisioned IOPS: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html
       StorageType: io1
       # I think there's some sort of minimum here... and this is likely it.

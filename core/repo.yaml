@@ -96,23 +96,11 @@ Resources:
                   - 'cloudformation:ExecuteChangeSet'
                   - 'cloudformation:DescribeStacks'
                   - 'cloudwatch:*'
-                  - 'ecs:*'
-                  - 'ec2:CreateSecurityGroup'
-                  - 'ec2:DescribeSecurityGroups'
-                  - 'ec2:DeleteSecurityGroup'
-                  - 'elasticloadbalancing:CreateTargetGroup'
-                  - 'elasticloadbalancing:DeleteTargetGroup'
-                  - 'elasticloadbalancing:DescribeTargetGroups'
-                  - 'elasticloadbalancing:ModifyTargetGroupAttributes'
-                  - 'elasticloadbalancing:DescribeListeners'
-                  - 'elasticloadbalancing:CreateListener'
-                  - 'elasticloadbalancing:DeleteListener'
                   - 'logs:CreateLogGroup'
                   - 'logs:DeleteLogGroup'
                   - 'logs:Describe*'
                   - 'logs:CreateLogStream'
                   - 'logs:PutLogEvents'
-                  - 'ec2:AuthorizeSecurityGroupIngress'
                   
                   # TODO: Make more precise
                   # New stuff here 2023-10-21
@@ -126,27 +114,9 @@ Resources:
                   - 's3:SetBucketEncryption'
                   - 's3:GetEncryptionConfiguration'
                   - 's3:PutEncryptionConfiguration'
-                  - 'redshift:CreateClusterSubnetGroup'
                   - 'redshift:*'
-                  - 'cloudformation:*'
-
-                  - 'ec2:AssociateRouteTable'
-                  - 'ec2:AuthorizeSecurityGroupEgress'
-                  - 'ec2:AuthorizeSecurityGroupIngress'
-                  - 'ec2:CreateRouteTable'
-                  - 'ec2:CreateSubnet'
-                  - 'ec2:CreateSecurityGroup'
-                  - 'ec2:DescribeInstances'
-                  - 'ec2:DescribeNetworkInterfaces'
-                  - 'ec2:DescribeRouteTables'
-                  - 'ec2:DescribeSecurityGroups'
-                  - 'ec2:DescribeSubnets'
-                  - 'ec2:ModifyNetworkInterfaceAttribute'
-                  - 'ec2:RevokeSecurityGroupEgress'
                   - 'ec2:*'
                   - 'rds:*'
-                  - 'iam:*'
-
                   - 'sqs:*'
                   - 'sns:*'
                   - 'iam:GetPolicy'
@@ -159,7 +129,6 @@ Resources:
                   - 'ssm:DeleteParameter'
                   - 'ssm:AddTagsToResource'
                 Resource: '*'
-
   
 Outputs:
 

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: "database-class-setup : A CodePipeline / CodeBuild project to create a database and install a schema."
+Description: "database-class-setup : A CodePipeline / CodeBuild project to install a schema into an EXISTING database."
 
 Parameters:
   Prefix:
@@ -16,10 +16,6 @@ Parameters:
     Description: "The name of the cloudformation template to create the database"
 
   Buildspec:
-    Type: String
-    Description: "The name of the buildspec file to use to populate the schema"
-
-  BuildspecDeploy:
     Type: String
     Description: "The name of the buildspec file to use to populate the schema"
 
@@ -60,22 +56,6 @@ Resources:
                 PollForSourceChanges: false
               RunOrder: 1
 
-        - Name: Deploy
-          Actions:
-            - Name: Deploy
-              InputArtifacts:
-                - Name: SourceOutput
-              OutputArtifacts:
-                - Name: BuildArtifactDeploy
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Version: 1
-                Provider: CodeBuild
-              Configuration:
-                ProjectName: !Ref BuildProjectDeploy
-              RunOrder: 1
-
         - Name: Build
           Actions:
             - Name: Install-Schema
@@ -97,34 +77,6 @@ Resources:
 #( (__(  O )) D ( ) _)  ) _ () \/ ( )( / (_/\ ) D (
 # \___)\__/(____/(____)(____/\____/(__)\____/(____/
 #
-
-  BuildProjectDeploy:
-    Type: AWS::CodeBuild::Project
-    Properties:
-        Name: !Join [ "-", [!Ref Name, "-deploy"]]
-        Artifacts:
-            Type: CODEPIPELINE
-        Environment:
-            ComputeType: BUILD_GENERAL1_SMALL
-            # AL2 Latest : https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
-            # Ubuntu 7.0
-            Image: aws/codebuild/standard:7.0
-            PrivilegedMode: false
-            Type: LINUX_CONTAINER
-            EnvironmentVariables:
-            - Name: BUCKET_NAME
-              Type: PLAINTEXT
-              Value: !ImportValue 
-                Fn::Join: [ '-', [!Ref Prefix, "ArtifactStoreBucket"]]
-        ServiceRole:
-            Fn::GetAtt:
-            - BuildRole
-            - Arn
-    
-        Source:
-            # Assume buildspec is in the source root directory
-            Type: CODEPIPELINE
-            BuildSpec: !Ref BuildspecDeploy
 
   BuildProject:
     Type: AWS::CodeBuild::Project
