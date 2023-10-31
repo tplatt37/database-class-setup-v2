@@ -1,0 +1,41 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      
+      #
+      # This is the buildspec.yml (CodeBuild "Build Instructions") that are used to load schema/database/data
+      # into each of the databases.  It's all done in one long build project for simplicity sake.
+      #
+      
+      # Dynamically determine which account we are. I do not want to embed any account id into these files.
+      - ACCOUNTID=$(aws sts get-caller-identity --query "Account" --output text)
+      - echo "AccountID=$ACCOUNTID"
+      
+      - REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
+      - echo "Region=$REGION"
+
+      # Which shell are we using?
+      - echo "Using shell..."
+      - ls -lha $(which sh) 
+      
+      # Always good to know what version of AWS CLI you are dealing with...
+      #- pip3 install --upgrade awscli
+      - aws --version
+
+      - PREFIX="database"
+      
+  build:
+    commands:
+      - echo Started on `date`. >> report.txt
+      - export AWS_DEFAULT_REGION=us-east-1 
+      - aws cloudformation deploy --stack-name database-postgres-cluster --template-file cfn-postgres-cluster-2.yaml --parameter-overrides Prefix=database 
+      
+  post_build:
+    commands:
+      - echo Completed on `date` >> report.txt
+      - cat report.txt
+artifacts:
+    files: 
+      - report.txt

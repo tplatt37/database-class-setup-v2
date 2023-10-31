@@ -19,6 +19,10 @@ Parameters:
     Type: String
     Description: "The name of the buildspec file to use to populate the schema"
 
+  BuildspecDeploy:
+    Type: String
+    Description: "The name of the buildspec file to use to populate the schema"
+
 Resources:
 
 #  ___  __  ____  ____  ____  __  ____  ____  __    __  __ _  ____ 
@@ -56,29 +60,21 @@ Resources:
                 PollForSourceChanges: false
               RunOrder: 1
 
-        - Name: Create-Database
+        - Name: Deploy
           Actions:
-            - Name: Deploy-Database
+            - Name: Deploy
               InputArtifacts:
-                # need to pass cfn yaml through from the source to the deploy stage.
                 - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildArtifactDeploy
               ActionTypeId:
-                Category: Deploy
+                Category: Build
                 Owner: AWS
-                Provider: CloudFormation
-                Version: '1'
+                Version: 1
+                Provider: CodeBuild
               Configuration:
-                ActionMode: CREATE_UPDATE
-                Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
-                RoleArn: !ImportValue 
-                  Fn::Join: [ '-', [!Ref Prefix, "CFNDeployRole"]]
-                # We're updating an existing stack.
-                StackName: !Join [ "-", [ !Ref Prefix, !Ref Name]]
-                # This is the CloudFormation template to use to create the database.
-                TemplatePath: !Join [ "::", [ "SourceOutput" , !Ref DatabaseTemplate]]
-                # We're changing a parameter of the template - to ensure unique resource names.
-                # See here: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/continuous-delivery-codepipeline-action-reference.html
-                #ParameterOverrides: '{"Prefix":"database"}'
+                ProjectName: !Ref BuildProjectDeploy
+              RunOrder: 1
 
         - Name: Build
           Actions:
@@ -101,6 +97,34 @@ Resources:
 #( (__(  O )) D ( ) _)  ) _ () \/ ( )( / (_/\ ) D (
 # \___)\__/(____/(____)(____/\____/(__)\____/(____/
 #
+
+  BuildProjectDeploy:
+    Type: AWS::CodeBuild::Project
+    Properties:
+        Name: !Join [ "-", [!Ref Name, "-deploy"]]
+        Artifacts:
+            Type: CODEPIPELINE
+        Environment:
+            ComputeType: BUILD_GENERAL1_SMALL
+            # AL2 Latest : https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
+            # Ubuntu 7.0
+            Image: aws/codebuild/standard:7.0
+            PrivilegedMode: false
+            Type: LINUX_CONTAINER
+            EnvironmentVariables:
+            - Name: BUCKET_NAME
+              Type: PLAINTEXT
+              Value: !ImportValue 
+                Fn::Join: [ '-', [!Ref Prefix, "ArtifactStoreBucket"]]
+        ServiceRole:
+            Fn::GetAtt:
+            - BuildRole
+            - Arn
+    
+        Source:
+            # Assume buildspec is in the source root directory
+            Type: CODEPIPELINE
+            BuildSpec: !Ref BuildspecDeploy
 
   BuildProject:
     Type: AWS::CodeBuild::Project
@@ -368,6 +392,8 @@ Resources:
                   - 'ec2:CreateNetworkInterface'
                   - 'ec2:DescribeDhcpOptions'
                   - 'ec2:DescribeVpcs'
+                  - 'cloudformation:*'
+                  - 'rds:*'
                 Resource: '*'
               # See here for perms needed by CodeBuild to utilize a VPC
               # https://docs.aws.amazon.com/codebuild/latest/userguide/auth-and-access-control-iam-identity-based-access-control.html#customer-managed-policies-example-create-vpc-network-interface
