@@ -87,9 +87,22 @@ main() {
 
        "postgres-cluster")
           #
+          # Resource handler returned message: "The specified resource name does not match an RDS resource in this region. (Service: Rds, Status Code: 400, Request ID: 24e5832f-c01c-4f3a-92a2-5b108d1a84ea)" (RequestToken: 98a044a7-44f6-1d86-205d-7a6844fccaaa, HandlerErrorCode: InvalidRequest)
           # This will sound crazy, but don't change the stack name of rds-cluster (Name parameter below)
           # For some reason it is very picky about the stack name and sometimes it won't work - it'll fail with a 400 error.
-          #
+          # It *might* be the LENGTH of the name.  It's gotta be not longer than 11 chars?
+          # That's a theory. It took LOTS of trial and error to pinpoint this limitation.
+          # Stack name can't be > 21 in length.
+        
+          # database-rds-cluster works
+          # database-rds-cluster-abc (us-east-2) failed
+          # database-rds-cluster-ab (us-east-1) failed
+          # database-rds-cluster-a (us-east-2) failed
+          # database-rds-cluster- (us-east-1) works
+          # database-1234567890123 - (us-east-2) Failed
+          # database-123456789012 - (us-east-2) works 
+          # 123456789012345678901
+
           aws cloudformation deploy \
           --template-file pipelines/pipeline-template.yaml \
           --parameter-overrides Name=rds-cluster DatabaseTemplate=rds-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
