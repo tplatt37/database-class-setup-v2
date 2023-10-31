@@ -40,27 +40,87 @@ main() {
   REGION=${REGION_ARG:-${AWS_DEFAULT_REGION:-$(aws configure get default.region)}}
 
   echo "Creating CodePipeline ... ($REGION) ..."
+   
+  DEMOS="test"
   
-  #--parameter-overrides Name=rds-mysql-instance DatabaseTemplate=icfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
-  #--parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
-  #--parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
+  for demo in $(echo $DEMOS | tr ',' ' ')
+  do
+    echo "Installing $demo ($REGION)..."
 
-  # NOTE: Weird 400 error -not working - 2023-10-22 - might be intermittent problem.
-  # NOTE: I just can't get this working - have tried all kinds of things and it works fine 
-  # from my CLI, but won't deploy via pipeline!
-  #--parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
+    case "$demo" in 
+      
+      "redshift")  
+        aws cloudformation deploy \
+        --template-file pipelines/pipeline-template.yaml \
+        --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
+        --stack-name $PREFIX-pipeline-redshift \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --region $REGION
+        ;;
 
-  # Works with admin perms
-  #   --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
+       "rds-mysql")
+          aws cloudformation deploy \
+          --template-file pipelines/pipeline-template.yaml \
+          --parameter-overrides Name=rds-mysql-instance DatabaseTemplate=cfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
+          --stack-name $PREFIX-pipeline-mysql-instance \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region $REGION
+          ;;
+
+       "aurora-mysql")
+          aws cloudformation deploy \
+          --template-file pipelines/pipeline-template.yaml \
+          --parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
+          --stack-name $PREFIX-pipeline-aurora-mysql \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region $REGION
+          ;;
+
+       "aurora-postgres")
+          aws cloudformation deploy \
+          --template-file pipelines/pipeline-template.yaml \
+          --parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
+           --stack-name $PREFIX-pipeline-aurora-postgres \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region $REGION
+          ;;
+  
+        "postgres-cluster")
+
+          # This one is DIFFERENT 
+          # We have to deploy the database stack here in the Bash.
+          # Long story short - I could not get it to work without a 400 error via pipeline 
+          aws cloudformation deploy \
+          --template-file schemas/cfn-postgres-cluster.yaml \
+          --parameter-overrides Prefix=$PREFIX \
+          --stack-name $PREFIX-postgres-cluster \
+          --region $REGION 
+          
+          # Then deploy the pipeline that will specify the schema
+          # note this uses the other template.
+          aws cloudformation deploy \
+          --template-file pipelines/pipeline-no-deploy-template.yaml \
+          --parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
+           --stack-name $PREFIX-pipeline-aurora-postgres \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region $REGION
+          ;;
+
+        "test")
+          echo "Test..."
+          ;;
+
+    esac
+
+
+
+
+  done
+
+  exit 0
+
 
   
-  aws cloudformation deploy \
-   --template-file pipelines/pipeline-template.yaml \
-   --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
-   --stack-name $PREFIX-pipeline-redshift \
-   --capabilities CAPABILITY_NAMED_IAM \
-   --region $REGION
-
   echo "Done."
 }
 
