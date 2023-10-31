@@ -41,8 +41,8 @@ main() {
 
   echo "Creating CodePipeline ... ($REGION) ..."
    
-  DEMOS="test"
-  
+  DEMOS="test,rds-cluster"
+
   for demo in $(echo $DEMOS | tr ',' ' ')
   do
     echo "Installing $demo ($REGION)..."
@@ -84,24 +84,37 @@ main() {
           --capabilities CAPABILITY_NAMED_IAM \
           --region $REGION
           ;;
-  
-        "postgres-cluster")
+
+       "rds-cluster")
+          aws cloudformation deploy \
+          --template-file pipelines/pipeline-template.yaml \
+          --parameter-overrides Name=rds-cluster DatabaseTemplate=rds-cluster.yaml Buildspec=buildspec-postgres-cluster \
+           --stack-name $PREFIX-pipeline-rds-cluster \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region $REGION
+          ;;
+
+        "xxxpostgres-cluster")
+
+          # Resource handler returned message: "The specified resource name does not match an RDS resource in this region. (Service: Rds, Status Code: 400, Request ID: 656ccd70-ce9e-4076-8570-172b7aeabb85)" (RequestToken: 340b4865-11bc-cfc9-db4f-3d8c7762576b, HandlerErrorCode: InvalidRequest)
 
           # This one is DIFFERENT 
           # We have to deploy the database stack here in the Bash.
           # Long story short - I could not get it to work without a 400 error via pipeline 
-          aws cloudformation deploy \
-          --template-file schemas/cfn-postgres-cluster.yaml \
-          --parameter-overrides Prefix=$PREFIX \
-          --stack-name $PREFIX-postgres-cluster \
-          --region $REGION 
+          # You MUST MUST MUST do a create-stack -not a deploy
+          echo "PREFIX=$PREFIX"
+          echo "REGION=$REGION"
+          export AWS_DEFAULT_REGION=$REGION
+          aws cloudformation create-stack  --template-body file://schemas/rds-cluster.yaml --stack-name $PREFIX-rds-cluster 
+          
+          exit 0
           
           # Then deploy the pipeline that will specify the schema
           # note this uses the other template.
           aws cloudformation deploy \
           --template-file pipelines/pipeline-no-deploy-template.yaml \
-          --parameter-overrides Name=postgres-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
-           --stack-name $PREFIX-pipeline-aurora-postgres \
+          --parameter-overrides Name=postgres-cluster Buildspec=buildspec-postgres-cluster.yml \
+          --stack-name $PREFIX-pipeline-postgres-cluster \
           --capabilities CAPABILITY_NAMED_IAM \
           --region $REGION
           ;;
