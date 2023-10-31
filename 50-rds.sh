@@ -41,7 +41,7 @@ main() {
 
   echo "Creating CodePipeline ... ($REGION) ..."
    
-  DEMOS="test,rds-cluster"
+  DEMOS="test,postgres-cluster"
 
   for demo in $(echo $DEMOS | tr ',' ' ')
   do
@@ -85,7 +85,11 @@ main() {
           --region $REGION
           ;;
 
-       "rds-cluster")
+       "postgres-cluster")
+          #
+          # This will sound crazy, but don't change the stack name of rds-cluster (Name parameter below)
+          # For some reason it is very picky about the stack name and sometimes it won't work - it'll fail with a 400 error.
+          #
           aws cloudformation deploy \
           --template-file pipelines/pipeline-template.yaml \
           --parameter-overrides Name=rds-cluster DatabaseTemplate=rds-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
@@ -94,39 +98,11 @@ main() {
           --region $REGION
           ;;
 
-        "xxxpostgres-cluster")
-
-          # Resource handler returned message: "The specified resource name does not match an RDS resource in this region. (Service: Rds, Status Code: 400, Request ID: 656ccd70-ce9e-4076-8570-172b7aeabb85)" (RequestToken: 340b4865-11bc-cfc9-db4f-3d8c7762576b, HandlerErrorCode: InvalidRequest)
-
-          # This one is DIFFERENT 
-          # We have to deploy the database stack here in the Bash.
-          # Long story short - I could not get it to work without a 400 error via pipeline 
-          # You MUST MUST MUST do a create-stack -not a deploy
-          echo "PREFIX=$PREFIX"
-          echo "REGION=$REGION"
-          export AWS_DEFAULT_REGION=$REGION
-          aws cloudformation create-stack  --template-body file://schemas/rds-cluster.yaml --stack-name $PREFIX-rds-cluster 
-          
-          exit 0
-          
-          # Then deploy the pipeline that will specify the schema
-          # note this uses the other template.
-          aws cloudformation deploy \
-          --template-file pipelines/pipeline-no-deploy-template.yaml \
-          --parameter-overrides Name=postgres-cluster Buildspec=buildspec-postgres-cluster.yml \
-          --stack-name $PREFIX-pipeline-postgres-cluster \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region $REGION
-          ;;
-
         "test")
-          echo "Test..."
+          echo "Test...nothing created (PREFIX=$PREFIX) (REGION=$REGION)"
           ;;
 
     esac
-
-
-
 
   done
 
