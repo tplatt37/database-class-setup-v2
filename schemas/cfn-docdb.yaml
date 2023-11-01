@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  database-class-setup : DocumentDB cluster.
+  
+Parameters:
+
+  Prefix:
+    Description: "String used in resource names and exports to ensure uniqueness."
+    Default: database
+    Type: String
+
+Resources:
+
+  DocDB:
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-docdb-dbcluster.html
+    Type: 'AWS::DocDB::DBCluster'
+    Properties:
+      # NOTE: username and password are coming from the Secret created earlier.
+      # To make it even more complicated, the Secret was created in another stack so we are going to ImportValue of the Secret Arn
+      MasterUsername:
+        !Join 
+          - ''
+          - - '{{resolve:secretsmanager:'
+            - Fn::ImportValue:
+                !Join
+                  - "-"
+                  - - !Ref Prefix
+                    - "DBAdminSecretArn"
+            - ':SecretString:username}}'
+      MasterUserPassword:
+        !Join 
+          - ''
+          - - '{{resolve:secretsmanager:'
+            - Fn::ImportValue:
+                !Join
+                  - "-"
+                  - - !Ref Prefix
+                    - "DBAdminSecretArn"
+            - ':SecretString:password}}'
+      DBSubnetGroupName:
+        Fn::ImportValue: 
+          !Join ["-", [!Ref Prefix, "DBSubnetGroup"]]
+      VpcSecurityGroupIds:
+        - Fn::ImportValue:
+            !Join
+              - "-"
+              - - !Ref Prefix
+                - "DBSecurityGroup"
+      StorageEncrypted: true
+      EnableCloudwatchLogsExports:
+        - audit
+      Port: 27017
+
+  DocDBInstance1:
+    Type: AWS::DocDB::DBInstance
+    Properties: 
+      AutoMinorVersionUpgrade: true
+      DBClusterIdentifier: !Ref DocDB
+      DBInstanceClass: db.t4g.medium
+
+  DocDBInstance2:
+    Type: AWS::DocDB::DBInstance
+    Properties: 
+      AutoMinorVersionUpgrade: true
+      DBClusterIdentifier: !Ref DocDB
+      DBInstanceClass: db.t4g.medium
+
+
+Outputs:
+
+  DocDB:
+    Value: !GetAtt DocDB.ClusterResourceId
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "DocDBClusterResourceId"]]
+      
+  DocDBPort:
+    Value: !GetAtt DocDB.Port
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "DocDBPort"]]
+      
+  DocDBEndpoint:
+    Value: !GetAtt DocDB.Endpoint
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "DocDBEndpoint"]]
+  
+  DocDBReadEndpoint:
+    Value: !GetAtt DocDB.ReadEndpoint
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "DocDBReadEndpoint"]]

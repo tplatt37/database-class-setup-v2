@@ -41,7 +41,7 @@ main() {
 
   echo "Creating CodePipeline ... ($REGION) ..."
    
-  DEMOS="test,postgres-cluster"
+  DEMOS="test,docdb,neptune"
 
   for demo in $(echo $DEMOS | tr ',' ' ')
   do
@@ -81,6 +81,24 @@ main() {
           --template-file pipelines/pipeline-template.yaml \
           --parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
            --stack-name $PREFIX-pipeline-aurora-postgres \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region $REGION
+          ;;
+
+       "docdb")
+          aws cloudformation deploy \
+          --template-file pipelines/pipeline-template.yaml \
+          --parameter-overrides Name=docdb DatabaseTemplate=cfn-docdb.yaml Buildspec=buildspec-docdb.yml \
+           --stack-name $PREFIX-pipeline-docdb \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --region $REGION
+          ;;
+
+       "neptune")
+          aws cloudformation deploy \
+          --template-file pipelines/pipeline-template.yaml \
+          --parameter-overrides Name=neptune DatabaseTemplate=cfn-neptune.yaml Buildspec=buildspec-neptune.yml \
+           --stack-name $PREFIX-pipeline-neptune \
           --capabilities CAPABILITY_NAMED_IAM \
           --region $REGION
           ;;

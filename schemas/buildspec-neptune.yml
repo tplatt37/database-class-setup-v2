@@ -1,0 +1,117 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      
+      #
+      # This is the buildspec.yml (CodeBuild "Build Instructions") that are used to load schema/database/data
+      # into each of the databases.  It's all done in one long build project for simplicity sake.
+      #
+      
+      # Dynamically determine which account we are. I do not want to embed any account id into these files.
+      - ACCOUNTID=$(aws sts get-caller-identity --query "Account" --output text)
+      - echo "AccountID=$ACCOUNTID"
+      
+      - REGION=${AWS_DEFAULT_REGION:-$(aws configure get default.region)}
+      - echo "Region=$REGION"
+
+      # Which shell are we using?
+      - echo "Using shell..."
+      - ls -lha $(which sh) 
+      
+      # Always good to know what version of AWS CLI you are dealing with...
+      - aws --version
+
+      - PREFIX="database"
+      
+      # First, we have to pull a whole lot of information from the various Stack Exports.
+      
+      # Neptune
+      - NEP_HOST=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneDBEndpoint'].Value" --output text)
+      - echo "NEP_HOST=$NEP_HOST"
+
+      - NEP_PORT=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneDBPort'].Value" --output text)
+      - echo "NEP_PORT=$NEP_PORT"
+      
+      - NEP_LOAD_ROLE=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneLoaderS3RoleArn'].Value" --output text)
+      - echo "NEP_LOAD_ROLE=$NEP_LOAD_ROLE"
+      
+      - NEP_BUCKET=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-NeptuneLoaderBucket'].Value" --output text)
+      - echo "NEP_BUCKET=$NEP_BUCKET"
+      
+      # Get the dbadmin password from SecretsManager
+      # But first, need to grab the ARN of it from a stack export
+      - SECRET_ARN=$(aws cloudformation list-exports --query "Exports[?Name=='$PREFIX-DBAdminSecretArn'].Value" --output text)
+      - echo "SECRET_ARN=$SECRET_ARN" 
+      
+      # Use a combination of client side query and jq to parse out the username and password from the secret.
+      - USER=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.username')
+      - PASSWORD=$(aws secretsmanager get-secret-value --secret-id $SECRET_ARN --query "SecretString" --output text | sed 's/\\//g' | jq -r '.password')
+      # For debugging purposes show the LENGTH of the USER/PASSWORD 
+      # If it's ZERO that means an issue retrieving it from SecretsManager.
+      - echo "Lengths:"
+      - echo ${#USER}
+      - echo ${#PASSWORD}
+  
+      # Install other things that we need.
+  
+      # Get the PEM and crt files needed to connect securely to the databases
+      - wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+      - wget https://s3.amazonaws.com/redshift-downloads/amazon-trust-ca-bundle.crt
+      - wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+      - ls -lha *.pem
+  
+  build:
+    commands:
+      - echo Started on `date`. >> report.txt
+      
+      #
+      # Lets load some database schemas , and data
+      # This pipeline is idempotent, but be aware it wilL DROP your existing database(s)!
+      # This is desired, because we probably want to start each class or demo in a consistent, known state.
+      # Please also note this pipeline runs for ALL THE DATABASES!
+      # It is not meant to be a production, real-world example - the purpose is to get us set up to teach a class.
+      #
+      
+      # First, download this file live. it's too big to put in the Repo (CFN Limits us to 6MB zip max)
+      - wget -q https://raw.githubusercontent.com/aws-samples/amazon-documentdb-samples/master/datasets/cases.json 1> /dev/null
+      - mongoimport --db cases --collection casecollection --host $DOCDB_HOST --port $DOCDB_PORT  --sslCAFile global-bundle.pem  --ssl  --authenticationDatabase admin --username $USER --password $PASSWORD --drop --file cases.json 1>/dev/null
+      
+      #
+      # Neptune via Loader REST API
+      #
+      
+      # This is the raw data to import
+      - aws s3 cp vertex.txt s3://$NEP_BUCKET
+      - aws s3 cp edges.txt s3://$NEP_BUCKET
+      
+      # Have to do a POST to tell the Neptune Loader to load the data. It will assume the role given. 
+      # By the way - the Loader MUST access S3 over a Gateway Endpoint - NATGW access WILL NOT WORK
+      # See here: https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load.html
+      # Example schema is from: https://github.com/aws-samples/amazon-neptune-samples/blob/master/gremlin/collaborative-filtering/README.md
+
+      # First, load the Vertex data
+      - DATA_VERTEX="{\"source\":\"s3://$NEP_BUCKET/vertex.txt\",\"iamRoleArn\":\"$NEP_LOAD_ROLE\",\"format\":\"csv\",\"region\":\"$REGION\",\"failOnError\":\"FALSE\"}"
+      - echo $DATA_VERTEX
+      # NOTE: YAML DOES NOT HANDLE A COLON SPACE. So do not reformat what you see below
+      - echo "We should see a 200 OK if this was successful."
+      - curl -X POST -H 'Content-Type:application/json' https://$NEP_HOST:$NEP_PORT/loader -d "$DATA_VERTEX"
+      # The above should return a status of 200 OK - Need error checking here.
+      
+      - echo "Sleep 30 to avoid any issues...(I don't know if this is really necessary....)"
+      - sleep 30
+      
+      # Now load the Edge data
+      - DATA_EDGE="{\"source\":\"s3://$NEP_BUCKET/edges.txt\",\"iamRoleArn\":\"$NEP_LOAD_ROLE\",\"format\":\"csv\",\"region\":\"$REGION\",\"failOnError\":\"FALSE\"}"
+      - echo $DATA_EDGE
+      # NOTE: YAML DOES NOT HANDLE A COLON SPACE. So do not reformat what you see below
+      - curl -X POST -H 'Content-Type:application/json' https://$NEP_HOST:$NEP_PORT/loader -d "$DATA_EDGE"
+    
+  post_build:
+    commands:
+      - echo Completed on `date` >> report.txt
+      - cat report.txt
+artifacts:
+    files: 
+      - report.txt

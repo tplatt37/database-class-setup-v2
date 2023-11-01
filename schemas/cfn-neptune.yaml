@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  database-class-setup : Neptune cluster.
+  
+Parameters:
+
+  Prefix:
+    Description: "String used in resource names and exports to ensure uniqueness."
+    Default: database
+    Type: String
+
+Resources:
+
+  # Will use this bucket to load data
+  LoaderBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+  
+  LoaderS3Role:
+    Type: 'AWS::IAM::Role'
+    # See https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html
+    # And https://s3.amazonaws.com/aws-neptune-customer-samples/v2/cloudformation-templates/neptune-base-stack.json
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - rds.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: !Join ["-", [!Ref Prefix, "S3LoaderPolicy"]]
+          PolicyDocument:
+            # This is NeptuneLoadFromS3Policy
+            # From https://s3.amazonaws.com/aws-neptune-customer-samples/v2/cloudformation-templates/neptune-base-stack.json
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - "s3:Get*"
+                  - "s3:List*"
+                Resource: "*"
+
+  NeptuneDB:
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-NeptuneDB-dbcluster.html
+    Type: 'AWS::Neptune::DBCluster'
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBSubnetGroupName:
+        Fn::ImportValue: 
+          !Join ["-", [!Ref Prefix, "DBSubnetGroup"]]
+      VpcSecurityGroupIds:
+        - Fn::ImportValue:
+            !Join
+              - "-"
+              - - !Ref Prefix
+                - "DBSecurityGroup"
+      StorageEncrypted: true
+      IamAuthEnabled: false 
+      Port: 8182
+      AssociatedRoles:
+        - RoleArn: !GetAtt LoaderS3Role.Arn
+
+  NeptuneDBInstance1:
+    Type: AWS::Neptune::DBInstance
+    Properties: 
+      AutoMinorVersionUpgrade: true
+      DBClusterIdentifier: !Ref NeptuneDB
+      DBInstanceClass: db.r5.large
+
+  NeptuneDBInstance2:
+    Type: AWS::Neptune::DBInstance
+    Properties: 
+      AutoMinorVersionUpgrade: true
+      DBClusterIdentifier: !Ref NeptuneDB
+      DBInstanceClass: db.r5.large
+
+
+Outputs:
+
+  NeptuneDB:
+    Value: !GetAtt NeptuneDB.ClusterResourceId
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "NeptuneDBClusterResourceId"]]
+      
+  NeptuneDBPort:
+    Value: !GetAtt NeptuneDB.Port
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "NeptuneDBPort"]]
+      
+  NeptuneDBEndpoint:
+    Value: !GetAtt NeptuneDB.Endpoint
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "NeptuneDBEndpoint"]]
+  
+  NeptuneDBReadEndpoint:
+    Value: !GetAtt NeptuneDB.ReadEndpoint
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "NeptuneDBReadEndpoint"]]
+      
+  LoaderBucket:
+    Value: !Ref LoaderBucket
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "NeptuneLoaderBucket"]]
+      
+  LoaderS3RoleArn:
+    Value: !GetAtt LoaderS3Role.Arn
+    Export:
+      Name: !Join ["-", [ !Ref Prefix, "NeptuneLoaderS3RoleArn"]]
