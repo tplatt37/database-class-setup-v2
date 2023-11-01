@@ -4,6 +4,20 @@
 # Basic RDS Multi-AZ Instance?
 #
 
+function create_cfn_stack() {
+  local stack_name=$1
+  local template_file=$2
+  shift 2
+  local cli_args=$@
+  
+  aws cloudformation create-stack \
+    --stack-name "${stack_name}" \
+    --template-body "file://${template_file}" \
+    --parameters ${cli_args} \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --region $REGION
+}
+
 main() {
 
   # This is an arbitrary naming identifier that is used to ensure all stacks can be clearly identified as being part of this project.
@@ -58,62 +72,36 @@ main() {
     echo "Installing $demo ($REGION)..."
 
     case "$demo" in 
-      
+
+      # TODO: use create-stack for greater parrallelization
+
       "redshift")  
-        aws cloudformation deploy \
-        --template-file pipelines/pipeline-template.yaml \
-        --parameter-overrides Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml \
-        --stack-name $PREFIX-pipeline-redshift \
-        --capabilities CAPABILITY_NAMED_IAM \
-        --region $REGION
+        create_cfn_stack $PREFIX-pipeline-redshift cfn-pipeline-template.yaml Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml
         ;;
 
        "rds-mysql")
-          aws cloudformation deploy \
-          --template-file pipelines/pipeline-template.yaml \
-          --parameter-overrides Name=rds-mysql-instance DatabaseTemplate=cfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml \
-          --stack-name $PREFIX-pipeline-mysql-instance \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region $REGION
+          create_cfn_stack $PREFIX-pipeline-mysql-instance cfn-pipeline-template.yaml Name=rds-mysql-instance DatabaseTemplate=cfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml
           ;;
 
        "aurora-mysql")
-          aws cloudformation deploy \
-          --template-file pipelines/pipeline-template.yaml \
-          --parameter-overrides Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml \
-          --stack-name $PREFIX-pipeline-aurora-mysql \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region $REGION
+          create_cfn_stack $PREFIX-pipeline-aurora-mysql cfn-pipeline-template.yaml Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml
           ;;
 
        "aurora-postgres")
-          aws cloudformation deploy \
-          --template-file pipelines/pipeline-template.yaml \
-          --parameter-overrides Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml \
-           --stack-name $PREFIX-pipeline-aurora-postgres \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region $REGION
+          create_cfn_stack $PREFIX-pipeline-aurora-postgres cfn-pipeline-template.yaml Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml
           ;;
 
        "docdb")
-          aws cloudformation deploy \
-          --template-file pipelines/pipeline-template.yaml \
-          --parameter-overrides Name=docdb DatabaseTemplate=cfn-docdb.yaml Buildspec=buildspec-docdb.yml \
-           --stack-name $PREFIX-pipeline-docdb \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region $REGION
+          create_cfn_stack $PREFIX-pipeline-docdb cfn-pipeline-template.yaml Name=docdb DatabaseTemplate=cfn-docdb.yaml Buildspec=buildspec-docdb.yml
           ;;
 
        "neptune")
-          aws cloudformation deploy \
-          --template-file pipelines/pipeline-template.yaml \
-          --parameter-overrides Name=neptune DatabaseTemplate=cfn-neptune.yaml Buildspec=buildspec-neptune.yml \
-           --stack-name $PREFIX-pipeline-neptune \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region $REGION
+          create_cfn_stack $PREFIX-pipeline-neptune cfn-pipeline-template.yaml Name=neptune DatabaseTemplate=cfn-neptune.yaml Buildspec=buildspec-neptune.yml
           ;;
 
        "postgres-cluster")
+          #
+          # For an RDS Multi-AZ Cluster - the stack name must be <=21 chars (or 400 will happen)!
           #
           # Resource handler returned message: "The specified resource name does not match an RDS resource in this region. (Service: Rds, Status Code: 400, Request ID: 24e5832f-c01c-4f3a-92a2-5b108d1a84ea)" (RequestToken: 98a044a7-44f6-1d86-205d-7a6844fccaaa, HandlerErrorCode: InvalidRequest)
           # This will sound crazy, but don't change the stack name of rds-cluster (Name parameter below)
@@ -131,12 +119,7 @@ main() {
           # database-123456789012 - (us-east-2) works 
           # 123456789012345678901
 
-          aws cloudformation deploy \
-          --template-file pipelines/pipeline-template.yaml \
-          --parameter-overrides Name=rds-cluster DatabaseTemplate=rds-cluster.yaml Buildspec=buildspec-postgres-cluster.yml \
-           --stack-name $PREFIX-pipeline-rds-cluster \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region $REGION
+          create_cfn_stack $PREFIX-pipeline-postgres-cluster cfn-pipeline-template.yaml Name=rds-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml
           ;;
 
         "test")
@@ -206,5 +189,7 @@ validate_arguments() {
   return
 
 }
+
+
 
 main "$@"

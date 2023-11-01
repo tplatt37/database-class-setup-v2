@@ -94,7 +94,7 @@ main() {
 
   # Keep this order! 
   # NOTE: We are deleting both the PIPELINE and the Stack it produced (the actual datsbase.)
-  STACK_NAME=$PREFIX-pipeline-rds-mysql-instance
+  STACK_NAME=$PREFIX-pipeline-mysql-instance
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
@@ -102,7 +102,7 @@ main() {
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
-  STACK_NAME=$PREFIX-pipeline-aurora-mysql-instance
+  STACK_NAME=$PREFIX-pipeline-aurora-mysql
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
@@ -110,7 +110,7 @@ main() {
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
-  STACK_NAME=$PREFIX-pipeline-aurora-postgres-instance
+  STACK_NAME=$PREFIX-pipeline-aurora-postgres
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
