@@ -100,7 +100,7 @@ err() {
 usage() {
   echo " Install database examples for class demonstrations."
   echo " "
-  echo " --demos : A comma delimited list of the demos to install (See README.md) for values."
+  echo " --demos : Any (or all) of the following in a comma-delimited list: redshift,rds-mysql,aurora-mysql,aurora-postgres,docdb,neptune,postgres-cluster"
   echo " --bucket : An existing private s3 bucket to be used to store bootstrap scripts and files (temporarily)."
   echo " --region : Region (Optional)"
   echo " --help : This help."
@@ -117,7 +117,44 @@ validate_arguments() {
   fi
 
   # TODO: Validate that DEMOS requested are valid
+  for demo in $(echo $DEMOS | tr ',' ' ')
+  do
+   
+    case "$demo" in 
+      
+      "redshift")  
+        ;;
 
+       "rds-mysql")
+        ;;
+
+       "aurora-mysql")
+        ;;
+
+       "aurora-postgres")
+        ;;
+
+       "docdb")
+        ;;
+
+       "neptune")
+        ;;
+
+       "postgres-cluster")
+        ;;
+
+        "test")
+        ;;
+
+        *)
+        err "Invalid demo: $demo"
+        exit 1
+
+    esac
+
+  done
+
+  return
 }
 
 main "$@"

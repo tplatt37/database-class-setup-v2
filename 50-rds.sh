@@ -16,6 +16,17 @@ main() {
         usage
         exit 1
         ;;
+
+      --demos)
+        shift
+        if [[ "$1" != "" ]]; then
+          DEMOS="$1"
+        else
+          err "Missing value for --demos."
+          usage
+        fi
+        ;;
+
       --region)
         shift
         if [[ "$1" != "" ]]; then
@@ -25,6 +36,7 @@ main() {
           usage
         fi
         ;;
+
       *)
         echo "Unknown argument: $1"
         usage
@@ -40,8 +52,6 @@ main() {
   REGION=${REGION_ARG:-${AWS_DEFAULT_REGION:-$(aws configure get default.region)}}
 
   echo "Creating CodePipeline ... ($REGION) ..."
-   
-  DEMOS="test,docdb,neptune"
 
   for demo in $(echo $DEMOS | tr ',' ' ')
   do
@@ -137,10 +147,6 @@ main() {
 
   done
 
-  exit 0
-
-
-  
   echo "Done."
 }
 
@@ -149,8 +155,9 @@ err() {
 }
 
 usage() {
-  echo " Create a RDS Instance."
+  echo " Create one or more RDS or Database Instances."
   echo " "
+  echo " --demos : Any (or all) of the following in a comma-delimited list: redshift,rds-mysql,aurora-mysql,aurora-postgres,docdb,neptune,postgres-cluster"
   echo " --region : Region (Optional)"
   echo " --help : This help."
   echo " "
@@ -158,6 +165,43 @@ usage() {
 }
 
 validate_arguments() {
+
+  for demo in $(echo $DEMOS | tr ',' ' ')
+  do
+   
+    case "$demo" in 
+      
+      "redshift")  
+        ;;
+
+       "rds-mysql")
+        ;;
+
+       "aurora-mysql")
+        ;;
+
+       "aurora-postgres")
+        ;;
+
+       "docdb")
+        ;;
+
+       "neptune")
+        ;;
+
+       "postgres-cluster")
+        ;;
+
+        "test")
+        ;;
+
+        *)
+        err "Invalid demo: $demo"
+        exit 1
+
+    esac
+
+  done
 
   return
 
