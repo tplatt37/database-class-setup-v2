@@ -12,7 +12,7 @@ function create_cfn_stack() {
   
   aws cloudformation create-stack \
     --stack-name "${stack_name}" \
-    --template-body "file://${template_file}" \
+    --template-body "file://pipelines/${template_file}" \
     --parameters ${cli_args} \
     --capabilities CAPABILITY_NAMED_IAM \
     --region $REGION
@@ -76,27 +76,27 @@ main() {
       # TODO: use create-stack for greater parrallelization
 
       "redshift")  
-        create_cfn_stack $PREFIX-pipeline-redshift cfn-pipeline-template.yaml Name=redshift DatabaseTemplate=cfn-redshift.yaml Buildspec=buildspec-redshift.yml
+        create_cfn_stack $PREFIX-pipeline-redshift pipeline-template.yaml ParameterKey=Name,ParameterValue=redshift ParameterKey=DatabaseTemplate,ParameterValue=cfn-redshift.yaml ParameterKey=Buildspec,ParameterValue=buildspec-redshift.yml
         ;;
 
        "rds-mysql")
-          create_cfn_stack $PREFIX-pipeline-mysql-instance cfn-pipeline-template.yaml Name=rds-mysql-instance DatabaseTemplate=cfn-rds-mysql.yaml Buildspec=buildspec-rds-mysql.yml
+          create_cfn_stack $PREFIX-pipeline-mysql-instance pipeline-template.yaml ParameterKey=Name,ParameterValue=rds-mysql-instance ParameterKey=DatabaseTemplate,ParameterValue=cfn-rds-mysql.yaml ParameterKey=Buildspec,ParameterValue=buildspec-rds-mysql.yml
           ;;
 
        "aurora-mysql")
-          create_cfn_stack $PREFIX-pipeline-aurora-mysql cfn-pipeline-template.yaml Name=aurora-mysql-instance DatabaseTemplate=cfn-aurora-mysql.yaml Buildspec=buildspec-aurora-mysql.yml
+          create_cfn_stack $PREFIX-pipeline-aurora-mysql pipeline-template.yaml ParameterKey=Name,ParameterValue=aurora-mysql-instance ParameterKey=DatabaseTemplate,ParameterValue=cfn-aurora-mysql.yaml ParameterKey=Buildspec,ParameterValue=buildspec-aurora-mysql.yml
           ;;
 
        "aurora-postgres")
-          create_cfn_stack $PREFIX-pipeline-aurora-postgres cfn-pipeline-template.yaml Name=aurora-postgres-instance DatabaseTemplate=cfn-aurora-postgres.yaml Buildspec=buildspec-aurora-postgres.yml
+          create_cfn_stack $PREFIX-pipeline-aurora-postgres pipeline-template.yaml ParameterKey=Name,ParameterValue=aurora-postgres-instance ParameterKey=DatabaseTemplate,ParameterValue=cfn-aurora-postgres.yaml ParameterKey=Buildspec,ParameterValue=buildspec-aurora-postgres.yml
           ;;
 
        "docdb")
-          create_cfn_stack $PREFIX-pipeline-docdb cfn-pipeline-template.yaml Name=docdb DatabaseTemplate=cfn-docdb.yaml Buildspec=buildspec-docdb.yml
+          create_cfn_stack $PREFIX-pipeline-docdb pipeline-template.yaml ParameterKey=Name,ParameterValue=docdb ParameterKey=DatabaseTemplate,ParameterValue=cfn-docdb.yaml ParameterKey=Buildspec,ParameterValue=buildspec-docdb.yml
           ;;
 
        "neptune")
-          create_cfn_stack $PREFIX-pipeline-neptune cfn-pipeline-template.yaml Name=neptune DatabaseTemplate=cfn-neptune.yaml Buildspec=buildspec-neptune.yml
+          create_cfn_stack $PREFIX-pipeline-neptune pipeline-template.yaml ParameterKey=Name,ParameterValue=neptune ParameterKey=DatabaseTemplate,ParameterValue=cfn-neptune.yaml ParameterKey=Buildspec,ParameterValue=buildspec-neptune.yml
           ;;
 
        "postgres-cluster")
@@ -119,7 +119,7 @@ main() {
           # database-123456789012 - (us-east-2) works 
           # 123456789012345678901
 
-          create_cfn_stack $PREFIX-pipeline-postgres-cluster cfn-pipeline-template.yaml Name=rds-cluster DatabaseTemplate=cfn-postgres-cluster.yaml Buildspec=buildspec-postgres-cluster.yml
+          create_cfn_stack $PREFIX-pipeline-postgres-cluster pipeline-template.yaml ParameterKey=Name,ParameterValue=rds-cluster ParameterKey=DatabaseTemplate,ParameterValue=cfn-postgres-cluster.yaml ParameterKey=Buildspec,ParameterValue=buildspec-postgres-cluster.yml
           ;;
 
         "test")
