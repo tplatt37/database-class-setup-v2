@@ -88,7 +88,7 @@ main() {
   fi
 
   # Install indidividual pipelines as requested.
-
+  ./50-rds.sh --demos $DEMOS --bucket $BUCKET --region $REGION
 
 
 }
