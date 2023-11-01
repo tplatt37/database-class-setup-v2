@@ -134,7 +134,15 @@ main() {
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
+  STACK_NAME=$PREFIX-pipeline-docdb
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+
   STACK_NAME=$PREFIX-docdb
+  echo "Deleting ($STACK_NAME) ..."
+  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+
+  STACK_NAME=$PREFIX-pipeline-neptune
   echo "Deleting ($STACK_NAME) ..."
   aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
 
@@ -165,7 +173,13 @@ main() {
   
   STACK_NAME=$PREFIX-redshift
   aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
-  
+
+  STACK_NAME=$PREFIX-docdb
+  aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+
+  STACK_NAME=$PREFIX-neptune
+  aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region $REGION
+   
   # Now, we can delete these...
   # ... but only after a 5 minute sleep. THere are some delays between the db stacks being 
   # gone and the ability to delete these!
