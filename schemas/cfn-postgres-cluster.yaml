@@ -30,6 +30,7 @@ Resources:
       # I think there's some sort of minimum here... and this is likely it.
       AllocatedStorage: 128 
       Iops: 1000
+      PerformanceInsightsEnabled: true
       DBSubnetGroupName:
         Fn::ImportValue: 
           !Join ["-", [!Ref Prefix, "DBSubnetGroup"]]
