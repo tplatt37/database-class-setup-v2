@@ -3,6 +3,8 @@
 #
 # Easy way to connect to the Aurora Postresql databases created by these templates.
 #
+# This will open psql interactively.
+# If you "source" this command it'll set ENV VARS for easier connecting (HOST, PORT, USER, PGPASSWORD, etc.)
 
 main() {
 
