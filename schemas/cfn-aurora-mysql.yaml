@@ -89,7 +89,7 @@ Resources:
       CACertificateIdentifier: rds-ca-rsa2048-g1
       # aws rds describe-db-engine-versions --default-only --engine mysql --engine-version 8.0 --region us-east-1 --query '*[].{Engine:Engine,EngineVersion:EngineVersion}' --output text
       DBClusterIdentifier: !Ref RDSCluster
-      DBInstanceClass: db.r5.large
+      DBInstanceClass: db.t4g.medium
       DBParameterGroupName: !Ref RDSDBParameterGroup
       DBSubnetGroupName:
         Fn::ImportValue: 
@@ -102,7 +102,7 @@ Resources:
       Engine: aurora-mysql
       CACertificateIdentifier: rds-ca-rsa2048-g1
       DBClusterIdentifier: !Ref RDSCluster
-      DBInstanceClass: db.r5.large
+      DBInstanceClass: db.t4g.medium
       DBParameterGroupName: !Ref RDSDBParameterGroup
       DBSubnetGroupName:
         Fn::ImportValue: 

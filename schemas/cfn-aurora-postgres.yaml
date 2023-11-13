@@ -75,7 +75,7 @@ Resources:
       Engine: aurora-postgresql
       CACertificateIdentifier: rds-ca-rsa2048-g1
       DBClusterIdentifier: !Ref RDSClusterPg
-      DBInstanceClass: db.r6g.large
+      DBInstanceClass: db.t4g.medium
       DBParameterGroupName: !Ref RDSDBParameterGroupPg
       DBSubnetGroupName:
         Fn::ImportValue: 
@@ -88,7 +88,7 @@ Resources:
       Engine: aurora-postgresql
       CACertificateIdentifier: rds-ca-rsa2048-g1
       DBClusterIdentifier: !Ref RDSClusterPg
-      DBInstanceClass: db.r6g.large
+      DBInstanceClass: db.t4g.medium
       DBParameterGroupName: !Ref RDSDBParameterGroupPg
       DBSubnetGroupName:
         Fn::ImportValue: 
