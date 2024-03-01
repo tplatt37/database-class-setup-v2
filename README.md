@@ -79,7 +79,7 @@ For example, to use the psql CLI to connect to the Multi-AZ PostgresSQL Cluster 
 ```
 ./11-get-certs.sh
 cd scripts
-./connect-mysql.sh --database multiaz-instance --mode rw --region us-west-2
+./connect-mysql.sh --database multiaz-rds --mode rw --region us-west-2
 ```
 
 The helper script retrieves the endpoint, ports, username, password, etc. automatically.
