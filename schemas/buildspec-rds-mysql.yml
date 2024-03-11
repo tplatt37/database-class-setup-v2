@@ -62,9 +62,9 @@ phases:
       # which results in SSL certificate validation failures. See here: https://aws.amazon.com/premiumsupport/knowledge-center/rds-error-2026-ssl-connection/
       # To make our life easier, we just use mysql8.0 (even though our cluster is 5.7)
       #
-      # New gpg key needed in 2022 for mysql community edition
-      - rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
-      
+      # New gpg key needed in 2024 for mysql community edition
+      - rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2023
+
       # Try this: https://serverfault.com/questions/785778/yum-install-error-nothing-to-do-mysql-centos-7o
       # https://dev.mysql.com/doc/mysql-repo-excerpt/8.0/en/linux-installation-yum-repo.html
       - wget https://dev.mysql.com/get/mysql80-community-release-el7-7.noarch.rpm
