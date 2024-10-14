@@ -41,7 +41,7 @@ Resources:
       # With Aurora - Version is set at the cluster level
       # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-dbcluster.html#cfn-rds-dbcluster-engineversion
       # aws rds describe-db-engine-versions --engine aurora-postgresql --query "DBEngineVersions[].EngineVersion" 
-      EngineVersion: 15.3
+      EngineVersion: 16.4 
       # NOTE: Overriding the Aurora default of 3306 when using Provisioned (Mysql and Postgres!)
       Port: 5432
       DBSubnetGroupName:
