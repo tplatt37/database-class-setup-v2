@@ -48,7 +48,7 @@ Create the VPC needed:
 
 To install database examples, run
 ```
-./install.sh --bucket "private-bucket-name" --demos "multiaz-instance-mysql,redshift,documentdb,neptune,multiaz-cluster-postgress" --region us-east-1
+./install.sh --bucket "private-bucket-name" --demos "multiaz-instance-mysql,redshift,documentdb,neptune,postgress-cluster" --region us-east-1
 ```
 
 The above will create multiple CodePipelines that will setup the database cluster/instance and populate with a example database schema.   

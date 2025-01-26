@@ -64,6 +64,16 @@ main() {
       exit 1
   fi
 
+  # Bucket exists?
+
+  # Usage example:
+  if bucket_exists "$BUCKET"; then
+      echo "Bucket $BUCKET exists"
+  else
+      echo "Bucket does not exist"
+      exit 1
+  fi
+
   # VPC ?
   # There should be an existing VPC - created either by this project, or via the Super-VPC project.
   # This VPC has database subnet groups, and other things that will be needed later.
@@ -92,6 +102,17 @@ main() {
 
 
 }
+
+function bucket_exists() {
+    local bucket_name=$1
+    
+    if aws s3api head-bucket --bucket "$bucket_name" >/dev/null 2>&1; then
+        return 0  # bucket exists
+    else
+        return 1  # bucket does not exist
+    fi
+}
+
 
 err() {
    echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
